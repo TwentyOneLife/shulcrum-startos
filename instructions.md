@@ -94,6 +94,12 @@ If Shulcrum is useful to you, donations go to TwentyOne.Life:
 1BH665bXvEqSuoWQUihiQiPpt2BqpzrgGD
 ```
 
+As a URI, which is what the QR below encodes:
+
+```
+bitcoin:1BH665bXvEqSuoWQUihiQiPpt2BqpzrgGD
+```
+
 <img src="assets/donation-qr.png" alt="BitcoinB2B donation address for TwentyOne.Life" width="220">
 
 **Read this before sending.** Bitcoin Blake2b shares Bitcoin's address format and its genesis block,

@@ -178,6 +178,12 @@ Donations to TwentyOne.Life, in **BitcoinB2B**:
 1BH665bXvEqSuoWQUihiQiPpt2BqpzrgGD
 ```
 
+URI, which a wallet with a handler opens on a click, and which is what the QR encodes:
+
+```
+bitcoin:1BH665bXvEqSuoWQUihiQiPpt2BqpzrgGD
+```
+
 <img src="assets/donation-qr.png" alt="BitcoinB2B donation address for TwentyOne.Life" width="200">
 
 Bitcoin Blake2b shares Bitcoin's address format and its genesis block, so this address is equally
