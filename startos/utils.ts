@@ -38,39 +38,27 @@ export const dataDir = '/mnt/shulcrum/db'
  */
 export const storeSubdir = 'fulc2_db'
 
-/** The chains bitcoind nests under a subdirectory of the datadir. Mainnet writes no such line. */
-const NESTED_CHAINS = ['regtest', 'testnet4', 'testnet', 'signet'] as const
-
-/**
- * Which chain the node is on, read from its own generated config rather than configured here, so
- * the two cannot drift. Ordered longest-first is not needed: the match is on a whole line.
- */
-export const chainFromConf = (conf: string | null) =>
-  NESTED_CHAINS.find((c) =>
-    conf?.split('\n').some((l) => l.trim() === `${c}=1`),
-  ) ?? null
-
 /**
  * The node's RPC cookie, as our container sees it.
  *
- * Derived, not hardcoded. bitcoind keeps a non-mainnet chain's data, cookie included, in a
- * subdirectory named for that chain, and the `bitcoind` package offers all of them. A fixed root
- * path is simply wrong there, and it fails in the least helpful way available: the chain guard
- * needs this cookie to reach the node, so a wrong path reports "cannot reach the node" and says
- * nothing about directories.
+ * At the datadir root, and constant. bitcoind the daemon nests a non-mainnet chain's cookie under a
+ * subdirectory, so #24 derived this path from the node's own config. That derivation is gone,
+ * because the `bitcoind` package cannot reach the case it defended:
  *
- * A BLAKE2b chain is a mainnet chain, so in practice this resolves to the root every time. The
- * value is that a misconfigured node fails with its actual cause.
+ * - it carries no chain selector at all, no `testnet`/`signet`/`regtest`/`chain` key in its config
+ *   model and no chain flag on the daemon, which it launches with `-onion` and nothing else;
+ * - it writes `rpccookiefile=.cookie` over whatever the user supplied, and addresses the cookie as
+ *   `<datadir>/.cookie` in its readiness check, its cli args and its electrs passthrough.
+ *
+ * The derivation could also not distinguish the two cases it needed to. The reactive read mapped an
+ * unreadable config and a mainnet config to the same `null`, and the change comparator treated
+ * `null` as "no change", so a node moving off a nested chain would have kept the old nested cookie
+ * path and failed to authenticate with exactly the misleading message #24 set out to remove.
+ *
+ * What survives from #24 is the half that earned its place and does not depend on any of this: the
+ * chain guard reports an unreadable cookie and an unreachable node as different faults.
  */
-export const cookiePathFor = (chain: string | null) =>
-  chain ? `${nodeMountpoint}/${chain}/.cookie` : `${nodeMountpoint}/.cookie`
-
-/**
- * Seed value for the config file, before a node is mounted and its chain can be read. main.ts
- * overwrites it with the resolved path on every start, so this is only ever what the file holds
- * between first init and first run.
- */
-export const defaultCookiePath = cookiePathFor(null)
+export const cookiePath = `${nodeMountpoint}/.cookie`
 
 /**
  * Fulcrum's admin RPC, loopback inside the container only.

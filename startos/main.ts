@@ -1,4 +1,3 @@
-import { FileHelper } from '@start9labs/start-sdk'
 import { existsSync } from 'fs'
 import { manifest as nodeManifest } from 'bitcoin-core-startos/startos/manifest'
 import { confFile } from './fileModels/fulcrum.conf'
@@ -6,8 +5,7 @@ import { i18n } from './i18n'
 import { sdk } from './sdk'
 import {
   adminPort,
-  chainFromConf,
-  cookiePathFor,
+  cookiePath,
   dataDir,
   nodeId,
   nodeMountpoint,
@@ -47,30 +45,6 @@ export const main = sdk.setupMain(async ({ effects }) => {
   )
 
   const rootfs = await container.rootfs
-
-  /**
-   * Which chain the node is on, read from its own generated config.
-   *
-   * Read rather than configured, so the two cannot drift, and restarting us if the node ever moves
-   * chain. Deriving that from the absence of a chain line rather than from the package id is what
-   * keeps this working when the id stays the same across such a move.
-   */
-  const chain = await FileHelper.string(`${rootfs}${nodeMountpoint}/bitcoin.conf`)
-    .read(
-      // Map to the chain, not to the file. The reactive key is whatever this returns, so mapping
-      // the whole file would restart us mid-index every time the node's owner changed dbcache or
-      // turned on ZMQ. The chain is the only thing here we consume.
-      (c) => chainFromConf(c),
-      (prev, next) => next === null || prev === next,
-    )
-    .const(effects)
-  const cookiePath = cookiePathFor(chain)
-  if (chain) {
-    console.warn(
-      `The node reports chain "${chain}". This package indexes the Bitcoin Blake2b mainnet chain; ` +
-        `the chain guard below will refuse to build an index here.`,
-    )
-  }
 
   await confFile.merge(effects, {
     ...(nodeRpc && { bitcoind: nodeRpc }),
@@ -123,9 +97,9 @@ printf '%s' "\${#HDR}"`
 
     if (res.exitCode === 4) {
       throw new Error(
-        `Cannot read the Bitcoin node's RPC cookie at ${cookiePath}. The node reports chain ` +
-          `"${chain ?? 'main'}", so that is where its cookie should be. Either the node has not ` +
-          `started yet and has not written one, or it is on a different chain than its config says.`,
+        `Cannot read the Bitcoin node's RPC cookie at ${cookiePath}. bitcoind writes that file at ` +
+          `its datadir root on every start, so either the node has not started yet, or it is not ` +
+          `using cookie authentication.`,
       )
     }
 

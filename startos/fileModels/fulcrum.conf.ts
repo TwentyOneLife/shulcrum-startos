@@ -1,6 +1,6 @@
 import { FileHelper, z } from '@start9labs/start-sdk'
 import { sdk } from '../sdk'
-import { adminPort, dataDir, defaultCookiePath, port } from '../utils'
+import { adminPort, cookiePath, dataDir, port } from '../utils'
 
 /**
  * Fulcrum's config is flat `key = value` lines with unquoted values, which is what the SDK's ini
@@ -34,7 +34,7 @@ export const shape = z.object({
    * The default is only a seed. main.ts derives the real path from the node's own chain and writes
    * it on every start, because bitcoind nests a non-mainnet chain's cookie under a subdirectory.
    */
-  rpccookie: z.string().catch(defaultCookiePath),
+  rpccookie: z.string().catch(cookiePath),
 
   datadir: z.string().catch(dataDir),
 
