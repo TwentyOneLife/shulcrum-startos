@@ -10,3 +10,4 @@ build/
 .env.local
 *.env
 !.env.example
+javascript/
