@@ -58,6 +58,26 @@ export const main = sdk.setupMain(async ({ effects }) => {
   // by itself on the reconnect it was going to make anyway.
 
   /**
+   * Shell preamble for talking to the node. Defines `rpc <json>`, which prints the body and leaves
+   * the HTTP status in `$HTTP`.
+   *
+   * The status is the point. Without it a node that is not there and a node that answered and
+   * rejected the credential look identical: both yield no parseable result. Reporting the second as
+   * the first sends an operator to debug networking on a node that is answering fine (#27).
+   *
+   * The body goes to a file and the caller reads it from there, rather than `rpc` printing it for a
+   * `$(rpc ...)` to capture. A command substitution runs its command in a subshell, so `HTTP` set
+   * that way never reaches the caller and every status test silently compares against an empty
+   * string. That is not a hypothetical: it is what the first version of this did, and the test
+   * matrix caught all three consequences at once.
+   */
+  const rpcShell = (addr: string) => `rpc() {
+  HTTP=$(curl -s -o /tmp/rpc.out -w '%{http_code}' --max-time 10 \\
+    --user "$(cat ${cookiePath})" -H 'content-type: text/plain;' \\
+    --data-binary "$1" http://${addr}/ 2>/dev/null) || HTTP=000
+}`
+
+  /**
    * The chain guard.
    *
    * Runs before the index exists, because afterwards is too late: `extended_headers` fixes the
@@ -85,15 +105,28 @@ export const main = sdk.setupMain(async ({ effects }) => {
 # Distinct exit code, because a cookie we cannot read and a node we cannot reach are different
 # faults with different fixes, and reporting the first as the second is what #24 was about.
 [ -r "${cookiePath}" ] || exit 4
-rpc() { curl -s --max-time 10 --user "$(cat ${cookiePath})" -H 'content-type: text/plain;' --data-binary "$1" http://${nodeRpc}/; }
-H=$(rpc '{"jsonrpc":"1.0","id":"g","method":"getbestblockhash","params":[]}' | sed -n 's/.*"result":"\\([0-9a-f]*\\)".*/\\1/p')
+${rpcShell(nodeRpc)}
+rpc '{"jsonrpc":"1.0","id":"g","method":"getbestblockhash","params":[]}'
+if [ "$HTTP" = "401" ]; then exit 5; fi
+H=$(sed -n 's/.*"result":"\\([0-9a-f]*\\)".*/\\1/p' /tmp/rpc.out)
 [ -n "$H" ] || exit 3
-HDR=$(rpc "{\\"jsonrpc\\":\\"1.0\\",\\"id\\":\\"h\\",\\"method\\":\\"getblockheader\\",\\"params\\":[\\"$H\\",false]}" | sed -n 's/.*"result":"\\([0-9a-f]*\\)".*/\\1/p')
+rpc "{\\"jsonrpc\\":\\"1.0\\",\\"id\\":\\"h\\",\\"method\\":\\"getblockheader\\",\\"params\\":[\\"$H\\",false]}"
+if [ "$HTTP" = "401" ]; then exit 5; fi
+HDR=$(sed -n 's/.*"result":"\\([0-9a-f]*\\)".*/\\1/p' /tmp/rpc.out)
 [ -n "$HDR" ] || exit 3
 printf '%s' "\${#HDR}"`
 
     const res = await container.exec(['bash', '-c', probe], {})
     const hexChars = Number(res.stdout.toString().trim())
+
+    if (res.exitCode === 5) {
+      throw new Error(
+        `The Bitcoin node rejected our RPC credential. The cookie at ${cookiePath} was readable and ` +
+          `the node answered, with 401. That means it is not using cookie authentication: a node ` +
+          `configured with rpcauth or rpcuser and rpcpassword will refuse a cookie. This package ` +
+          `authenticates by cookie only, so the node has to offer it.`,
+      )
+    }
 
     if (res.exitCode === 4) {
       throw new Error(
@@ -128,6 +161,61 @@ printf '%s' "\${#HDR}"`
   }
 
   /**
+   * The node requirements guard: a transaction index, and no pruning.
+   *
+   * Nothing else enforces either. `dependencies.ts` cannot: neither `kind: 'running'` nor the health
+   * check ids say anything about a node's settings, the `bitcoind` package defaults `txindex` to
+   * false, and it offers `prune` as an ordinary user setting. Requiring the node's own `index-sync`
+   * check does not work either, tempting as it looks: `getindexinfo` lists only the indexes that are
+   * enabled and the node offers three, so a node running `blockfilterindex` with `txindex` off
+   * reports a healthy `index-sync` while the one index we need is absent. It says nothing about
+   * pruning at all.
+   *
+   * Without this the failure is silent and looks like ours. Shulcrum starts, both health checks
+   * pass, and every `blockchain.transaction.get` a wallet sends fails.
+   *
+   * Two deliberate differences from the chain guard above, which this must not be modelled on:
+   *
+   * - It runs on **every** start, not only before the first index. The node's own help says that
+   *   switching a full node to pruned "will disable txindex (if enabled)", so a working install can
+   *   lose the requirement long after its index was built.
+   * - It refuses only on a **definite** answer from a node that replied. Nothing here is
+   *   irreversible: an existing index stays valid, the service just cannot answer some queries. The
+   *   chain guard refuses on silence because building an index on an unverified chain cannot be
+   *   undone. This one falls through when it could not ask.
+   */
+  if (nodeRpc) {
+    const probe = `${rpcShell(nodeRpc)}
+[ -r "${cookiePath}" ] || exit 0
+rpc '{"jsonrpc":"1.0","id":"i","method":"getindexinfo","params":[]}'
+if [ "$HTTP" != "200" ]; then exit 0; fi
+if ! grep -q '"txindex"' /tmp/rpc.out; then exit 6; fi
+rpc '{"jsonrpc":"1.0","id":"c","method":"getblockchaininfo","params":[]}'
+if [ "$HTTP" != "200" ]; then exit 0; fi
+if grep -qE '"pruned"[[:space:]]*:[[:space:]]*true' /tmp/rpc.out; then exit 7; fi
+exit 0`
+
+    const res = await container.exec(['bash', '-c', probe], {})
+
+    if (res.exitCode === 6) {
+      throw new Error(
+        'The Bitcoin node has no transaction index. Shulcrum answers wallet queries about ' +
+          'transactions and cannot do that without one, and the node does not enable it by ' +
+          'default. Turn on Transaction Index (txindex) in the node and let it finish building, ' +
+          'then start this service again.',
+      )
+    }
+
+    if (res.exitCode === 7) {
+      throw new Error(
+        'The Bitcoin node is pruned. Shulcrum indexes the whole chain and needs the full block ' +
+          'history to do it, so a pruned node cannot back this service. Set the node to keep the ' +
+          'full blockchain, which means resyncing it, then start this service again.',
+      )
+    }
+  }
+
+  /**
    * How far the index has got, and how far it has to go.
    *
    * Two sources, because neither knows both numbers. Shulcrum's admin RPC reports the indexed
@@ -145,18 +233,36 @@ printf '%s' "\${#HDR}"`
    * TODO before #11 closes: exercise this against a live instance mid-build. The probe shape is
    * derived from the source, not yet observed.
    */
+  /**
+   * The last target height the node gave us.
+   *
+   * Kept because the two numbers come from two services and only one of them is ours. A node
+   * restart or update makes the target unavailable for a minute, and without this a fully indexed
+   * Shulcrum answered "not started yet" for the duration, taking anything gated on
+   * `['primary','sync-progress']` unready because of somebody else's restart (#26). Our own height
+   * is still known in that window, so the honest report is that height against the last target we
+   * were told, labelled as such.
+   */
+  let lastKnownTotal: number | null = null
+
   const readProgress = async (): Promise<{
     indexed: number
     total: number
     percent: string
+    stale: boolean
   } | null> => {
+    // The node half is omitted entirely when there is no node, rather than curling `http://null/`.
+    const target = nodeRpc
+      ? `TGT=$(curl -s --max-time 5 --user "$(cat ${cookiePath})" -H 'content-type: text/plain;' \
+--data-binary '{"jsonrpc":"1.0","id":"h","method":"getblockchaininfo","params":[]}' \
+http://${nodeRpc}/ 2>/dev/null | sed -n 's/.*"blocks":\\([0-9]*\\).*/\\1/p')`
+      : 'TGT='
+
     const probe = `exec 3<>/dev/tcp/127.0.0.1/${adminPort} || exit 1
 printf '{"jsonrpc":"2.0","id":1,"method":"getinfo"}\\n' >&3
 IDX=$(timeout 5 head -n 1 <&3 | sed -n 's/.*"height":[[:space:]]*\\([0-9]*\\).*/\\1/p')
 exec 3<&- 3>&-
-TGT=$(curl -s --max-time 5 --user "$(cat ${cookiePath})" -H 'content-type: text/plain;' \
---data-binary '{"jsonrpc":"1.0","id":"h","method":"getblockchaininfo","params":[]}' \
-http://${nodeRpc}/ 2>/dev/null | sed -n 's/.*"blocks":\\([0-9]*\\).*/\\1/p')
+${target}
 printf '%s %s' "\${IDX:-}" "\${TGT:-}"`
 
     const res = await container.exec(['bash', '-c', probe], {})
@@ -164,15 +270,16 @@ printf '%s %s' "\${IDX:-}" "\${TGT:-}"`
 
     const [rawIndexed, rawTotal] = res.stdout.toString().trim().split(/\s+/)
     const indexed = Number(rawIndexed)
-    const total = Number(rawTotal)
-    if (
-      !Number.isFinite(indexed) ||
-      !Number.isFinite(total) ||
-      total <= 0 ||
-      indexed < 0
-    ) {
-      return null
-    }
+    // Our own height is the one number this check cannot do without: not knowing it is the only
+    // state that means "not started".
+    if (!Number.isFinite(indexed) || indexed < 0) return null
+
+    const freshTotal = Number(rawTotal)
+    const haveFresh = Number.isFinite(freshTotal) && freshTotal > 0
+    if (haveFresh) lastKnownTotal = freshTotal
+
+    const total = haveFresh ? freshTotal : lastKnownTotal
+    if (total === null) return null
 
     // Clamped because the two numbers are read a moment apart from different services, so a block
     // landing in between can put the index a hair past the height it was measured against.
@@ -181,6 +288,7 @@ printf '%s %s' "\${IDX:-}" "\${TGT:-}"`
       indexed: Math.min(indexed, total),
       total,
       percent: Math.min(100, (indexed / total) * 100).toFixed(1),
+      stale: !haveFresh,
     }
   }
 
@@ -209,12 +317,15 @@ printf '%s %s' "\${IDX:-}" "\${TGT:-}"`
         fn: async () => {
           const p = await readProgress()
           if (!p) return { result: 'starting', message: null }
+          // Said out loud when the target is the remembered one, so a number read here is never
+          // more current than it actually is.
+          const asOf = p.stale ? ' (node not answering; last known height)' : ''
           if (p.indexed >= p.total) {
-            return { result: 'success', message: i18n('Fully synced') }
+            return { result: 'success', message: i18n('Fully synced') + asOf }
           }
           return {
             result: 'loading',
-            message: `${p.percent}% (${p.indexed} of ${p.total})`,
+            message: `${p.percent}% (${p.indexed} of ${p.total})${asOf}`,
           }
         },
       },
