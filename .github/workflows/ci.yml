@@ -1,0 +1,34 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4  # TODO: pin actions to commit SHA (GUARDRAILS §4)
+      - name: Repo hygiene
+        run: |
+          set -e
+          test -f README.md
+          test -f LICENSE
+          test -f CONTRIBUTING.md
+          test -f docs/adr/0001-record-architecture-decisions.md
+          echo "hygiene OK"
+
+# The .s9pk build/test job is added here once the StartOS package (package.json + startos/) exists:
+# it will checkout, `npm ci`, `make`, and upload the .s9pk artifact.
+
+  no-internal-refs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guard against infra leakage
+        run: |
+          if git grep -nIE '192\.168\.[0-9]|(^|[^0-9.])10(\.[0-9]{1,3}){3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]|/home/|/data/|[a-z2-7]{16,56}\.onion' -- . ':!.github/workflows/ci.yml'; then
+            echo "::error::Internal infra reference (IP / local path / onion) found in a tracked file."
+            exit 1
+          fi
+          echo "no internal refs"

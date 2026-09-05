@@ -1,0 +1,37 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4  # TODO: pin actions to commit SHA (GUARDRAILS §4)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build .s9pk
+        run: |
+          npm ci
+          make
+      - name: Checksums
+        run: sha256sum *.s9pk > SHA256SUMS
+      - name: GPG-sign checksums (org key)
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --batch --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
+              --detach-sign --armor -o SHA256SUMS.asc SHA256SUMS
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            *.s9pk
+            SHA256SUMS
+            SHA256SUMS.asc

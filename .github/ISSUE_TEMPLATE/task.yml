@@ -1,0 +1,10 @@
+name: Task
+description: A concrete unit of work
+labels: [task]
+body:
+  - type: textarea
+    attributes: { label: Task }
+    validations: { required: true }
+  - type: textarea
+    attributes: { label: Acceptance criteria, description: Done when… }
+    validations: { required: true }

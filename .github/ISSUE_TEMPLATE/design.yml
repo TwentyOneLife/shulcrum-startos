@@ -1,0 +1,11 @@
+name: Design
+description: A change that needs a design doc first
+labels: [design]
+body:
+  - type: textarea
+    attributes: { label: Problem, description: What are we solving and why now }
+    validations: { required: true }
+  - type: textarea
+    attributes: { label: Proposed approach, description: Sketch + alternatives considered }
+  - type: textarea
+    attributes: { label: Risks / test plan }

@@ -1,0 +1,11 @@
+name: Bug
+description: Something is broken
+labels: [bug]
+body:
+  - type: textarea
+    attributes: { label: What happens, description: Observed vs expected }
+    validations: { required: true }
+  - type: textarea
+    attributes: { label: Repro, description: Minimal steps }
+  - type: textarea
+    attributes: { label: Environment, description: StartOS version, node flavor, chain height }
