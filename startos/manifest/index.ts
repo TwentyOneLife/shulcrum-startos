@@ -54,7 +54,11 @@ export const manifest = setupManifest({
       optional: false,
       metadata: {
         title: 'Bitcoin Knots',
-        icon: 'https://raw.githubusercontent.com/Start9Labs/bitcoin-core-startos/refs/heads/30.x/dep-icon.svg',
+        // Pinned to a commit, not to `refs/heads/30.x` as the template has it. `start-cli` fetches
+        // this at pack time and embeds the result in the .s9pk, so a branch ref means a build that
+        // reaches the network for an unpinned resource and can embed different bytes tomorrow than
+        // it did today. Verified identical to what the branch serves at the time of pinning.
+        icon: 'https://raw.githubusercontent.com/Start9Labs/bitcoin-core-startos/a7c9962d26cdccfee02e6bc670732ff7feb5bcc6/dep-icon.svg',
       },
     },
   },
