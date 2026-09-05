@@ -28,6 +28,18 @@ jobs:
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
           gpg --batch --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
               --detach-sign --armor -o SHA256SUMS.asc SHA256SUMS
+      - name: Verify the signature we just made
+        # Against the public key committed to this repo, in a throwaway keyring holding nothing
+        # else, which is exactly what a user does. A release that cannot be verified with the key
+        # we publish is worse than no release: it teaches people the check is noise. Catch it here
+        # rather than after it is public.
+        run: |
+          export GNUPGHOME="$(mktemp -d)"
+          chmod 700 "$GNUPGHOME"
+          gpg --batch --quiet --import keys/TwentyOneLife-release-signing.asc
+          gpg --batch --verify SHA256SUMS.asc SHA256SUMS
+          sha256sum --check SHA256SUMS
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
