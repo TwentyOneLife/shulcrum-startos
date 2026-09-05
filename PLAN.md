@@ -21,11 +21,30 @@ backend for the Bitcoin Blake2b (BitcoinB2B) chain and enabling a self-hosted me
    per index DB - set once at first index).
 6. **Integration** - install the package and point a self-hosted mempool explorer at it.
 
+## Status (2026-09-05)
+
+Phase 5 has its first green build. The `.s9pk` is produced end to end in CI: `start-cli` verified by
+checksum and both signatures, Shulcrum compiled from source in the package's own Dockerfile, the
+image converted to squashfs, and the result signed with our own build key. Open as PR #1.
+
+What that does and does not establish. It shows the package builds, signs, and typechecks. It does
+not show the package runs: it has not been installed on a StartOS node, and the health checks and
+the chain guard have been exercised only against a live node from a workstation, not in place.
+
+The build environment traps that took four red runs to clear are in `docs/ci.md`. Read it before
+touching `.github/workflows/ci.yml`.
+
+Phase 3 runs in parallel and is unaffected by any of this: the verification index is building
+against a live Bitcoin Blake2b node and is the gate on Phase 4.
+
 ## Risks / open items
 - Mainnet correctness is unverified upstream (testnet only) - Phase 3 is the crux.
 - Two Electrum surfaces flagged unfinished on mixed-length chains - Phase 4.
 - No `server.features` fork-identity field yet - wallets may not recognise the chain until added.
 - `extended_headers` is irreversible per index DB.
-- Heavier container build (Qt + RocksDB from source) than a Rust indexer.
+- Heavier container build (Qt + RocksDB from source) than a Rust indexer. Roughly 4 minutes on a
+  hosted runner, and it must not share a host with a running index: together they exhaust memory.
+- The node package enforces neither `txindex` nor an unpruned chain, and its `index-sync` health
+  check does not stand in for either. Tracked internally; a runtime probe is the route.
 
 License: GPLv3. Contributions: see `CONTRIBUTING.md`.
