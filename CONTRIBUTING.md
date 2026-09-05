@@ -88,5 +88,6 @@ Before you open it:
 ## Releases
 
 Releases ship a `SHA256SUMS` file and a detached GPG signature, so a download can be verified
-against a published key rather than trusted because of where it came from. See
-[`.github/workflows/release.yml`](.github/workflows/release.yml).
+against a published key rather than trusted because of where it came from.
+[`docs/verifying-a-release.md`](docs/verifying-a-release.md) is the procedure, and the public key is
+in [`keys/`](keys).
