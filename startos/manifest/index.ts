@@ -31,8 +31,7 @@ export const manifest = setupManifest({
   // Read the warning in instructions.md before sending anything: this chain shares Bitcoin's address
   // format and its genesis block, so this address is equally valid on Bitcoin and a payment sent
   // there is a different asset.
-  donationUrl:
-    'bitcoin:1BH665bXvEqSuoWQUihiQiPpt2BqpzrgGD',
+  donationUrl: 'bitcoin:1BH665bXvEqSuoWQUihiQiPpt2BqpzrgGD',
   description: { short, long },
   volumes: ['main'],
   images: {

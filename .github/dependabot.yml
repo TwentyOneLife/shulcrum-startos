@@ -1,0 +1,39 @@
+# Dependabot exists here mainly to solve a problem we created deliberately.
+#
+# Every action in this repo is pinned to a commit SHA rather than a tag, because a tag moves and a
+# moving third-party action is an unpinned dependency holding write access to the build. That is the
+# right trade, and its cost is staleness: a pinned SHA never picks up a security fix, and nobody
+# notices. Dependabot reads a pinned SHA together with its trailing version comment and bumps both,
+# which is what keeps pinning honest rather than merely frozen.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # Grouped, because six actions across two workflows and one composite action would otherwise
+    # arrive as six pull requests that each need a full build to prove themselves.
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: 'ci'
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      sdk:
+        patterns: ['@start9labs/*', 'bitcoin-core-startos']
+      tooling:
+        patterns: ['typescript', 'prettier', '@vercel/ncc', '@types/*']
+    commit-message:
+      prefix: 'deps'
+    open-pull-requests-limit: 5
+    # The SDK decides what a package manifest may contain and what the runtime accepts, so a bump is
+    # a behaviour change rather than a version number. It gets read, not waved through, however green
+    # the checks are.
+    labels:
+      - dependencies
