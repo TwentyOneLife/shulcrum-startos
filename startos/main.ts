@@ -166,7 +166,10 @@ printf '%s %s' "\${IDX:-}" "\${TGT:-}"`
   }
 
   return sdk.Daemons.of(effects)
-    .addDaemon('shulcrum', {
+    // `primary`, not `shulcrum`: this id is the health check id, and Mempool Guide requires
+    // `['primary', 'sync-progress']` from whatever holds the `fulcrum` id. Requiring an id a
+    // package does not declare reads to StartOS as a failing check that cannot even be named.
+    .addDaemon('primary', {
       subcontainer: container,
       // The config path is passed positionally; Shulcrum takes a conf file as its sole argument.
       exec: { command: ['shulcrum', '/mnt/shulcrum/fulcrum.conf'] },

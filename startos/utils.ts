@@ -6,10 +6,14 @@ import { sdk } from './sdk'
 export const port = 50001
 
 /**
- * Host id the Electrum interface binds on. Exported so dependents, a mempool explorer in
- * particular, resolve this service over the bridge without repeating a literal.
+ * Host id the Electrum interface binds on.
+ *
+ * `main`, which is what `Start9Labs/fulcrum-startos` exposes, because anything reaching a package
+ * with the `fulcrum` id expects fulcrum's layout. Mempool Guide connects by the hostname
+ * `fulcrum.startos` on port 50001 with TLS off, so the plaintext binding is the one that matters
+ * to it and the TLS one is for wallets off the box.
  */
-export const electrumHostId = 'electrum'
+export const electrumHostId = 'main'
 
 /**
  * The node package this service indexes. Named once; every reference resolves through here.

@@ -2,7 +2,20 @@ import { setupManifest } from '@start9labs/start-sdk'
 import { long, nodeDescription, short } from './i18n'
 
 export const manifest = setupManifest({
-  id: 'shulcrum',
+  /**
+   * `fulcrum`, not `shulcrum`, and the flavor in the version is what keeps that honest.
+   *
+   * StartOS resolves a dependency by package id, and an explorer reaches its indexer at
+   * `<id>.startos`. Mempool Guide offers exactly two indexers in a two-value picklist, `fulcrum`
+   * and `electrs`, and writes the choice out as a hostname. A package called `shulcrum` is not
+   * reachable by either name, however correctly it serves the chain, so #14 is impossible under
+   * that id. This is the same move the BLAKE2b node package already makes one layer down, taking
+   * `bitcoind` as `#knots:29.4.1:6` rather than inventing an id nothing looks for.
+   *
+   * The flavor is what stops this being a squat: it tells the registry that this and an ordinary
+   * BTC Fulcrum are not interchangeable, and the two cannot be installed side by side.
+   */
+  id: 'fulcrum',
   title: 'Shulcrum',
   license: 'GPL-3.0-only',
   packageRepo: 'https://github.com/TwentyOneLife/shulcrum-startos',
