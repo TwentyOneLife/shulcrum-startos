@@ -6,9 +6,13 @@ const notes =
   'Requires that node to be unpruned and to carry a transaction index.'
 
 export const current = VersionInfo.of({
-  // `#blake2b` marks this as a flavor of `fulcrum` rather than a replacement for it. Upstream is
-  // Fulcrum 2.1.2, which is what the number tracks.
-  version: '#blake2b:2.1.2:0',
+  // Marks this as a flavor of `fulcrum` rather than a replacement for it. Upstream is Fulcrum
+  // 2.1.2, which is what the number tracks.
+  //
+  // `blake` and not `blake2b`: the ExVer grammar accepts only `[a-z]` in a flavor, so a digit makes
+  // the whole manifest unparseable. The failure is not obvious from the message, which reports a
+  // column offset into the version string, so it is written down here rather than rediscovered.
+  version: '#blake:2.1.2:0',
   releaseNotes: { en_US: notes },
   migrations: {
     up: async ({ effects }) => {},
