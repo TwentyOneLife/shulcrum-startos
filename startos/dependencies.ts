@@ -8,12 +8,22 @@ import { nodeId } from './utils'
  * otherwise modelled on. That package exists to permit a pruned node and states that `txindex`
  * "is not required and must not be requested". Both of those are inverted here, and not by
  * oversight: Fulcrum's own requirements are that the node have `txindex=1` and not be a pruning
- * node, and `Controller.cpp` verifies the transaction index at startup by fetching a transaction
- * and refuses to proceed when that fails. A reader diffing the two packages will find this logic
- * reversed; it is deliberate.
+ * node. A reader diffing the two packages will find this logic reversed; it is deliberate.
  *
- * Both are standing requirements rather than one-time checks. A user who enables pruning after
- * the index is built breaks the service just as surely as one who never disabled it.
+ * Fulcrum does **not** enforce either, which this comment used to claim it did. `Controller.cpp`
+ * asks the node for the first transaction after genesis and, when that fails, prints an error
+ * banner and carries on serving. So the service starts, both health checks pass, and every
+ * `blockchain.transaction.get` fails. Nothing in this dependency block closes that gap either:
+ * `kind: 'running'` and a health check id say nothing about a node's settings, and the node's own
+ * `index-sync` check is not a substitute, because `getindexinfo` lists only the indexes that are
+ * enabled and the node offers three. A node running `blockfilterindex` with `txindex` off reports
+ * `index-sync` healthy. It says nothing about pruning at all. The requirements guard in main.ts is
+ * what actually enforces this, by asking the node.
+ *
+ * Both are standing requirements rather than one-time checks, which is why that guard runs on every
+ * start. A user who enables pruning after the index is built breaks the service just as surely as
+ * one who never disabled it, and the node's own help notes that switching to pruned disables
+ * `txindex` along the way.
  *
  * Health checks are the official package's own ids, `bitcoind` and `sync-progress`. Requiring an id
  * a package does not declare is indistinguishable from requiring a failing one: StartOS reads
