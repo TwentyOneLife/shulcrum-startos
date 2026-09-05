@@ -1,5 +1,6 @@
 import { FileHelper } from '@start9labs/start-sdk'
-import { manifest as nodeManifest } from 'knots-blake2b-startos/startos/manifest'
+import { existsSync } from 'fs'
+import { manifest as nodeManifest } from 'bitcoin-core-startos/startos/manifest'
 import { confFile } from './fileModels/fulcrum.conf'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
@@ -55,6 +56,57 @@ export const main = sdk.setupMain(async ({ effects }) => {
       (prev, next) => next === null || prev === next,
     )
     .const(effects)
+
+
+  /**
+   * The chain guard.
+   *
+   * Runs before the index exists, because afterwards is too late: `extended_headers` fixes the
+   * on-disk header record size and the store refuses to reopen under a different one, so a database
+   * built against the wrong chain is not a misconfiguration to correct, it is a re-index.
+   *
+   * Nothing in `dependencies.ts` can do this job. We depend on `bitcoind`, which is the id an
+   * ordinary Bitcoin node takes as well, and the two chains share every block up to 961639, so
+   * `sync-progress` passes on both. A dependency id is not evidence of a chain. The only thing that
+   * distinguishes them is a header, so ask the node for one and read its length.
+   *
+   * Only on first index. Once the database exists it already encodes the answer, and re-checking
+   * would turn a node being briefly unreachable into a refusal to start.
+   */
+  const dbPath = `${rootfs}/mnt/shulcrum/db`
+  if (!existsSync(dbPath) && nodeRpc) {
+    const probe = `set -e
+rpc() { curl -s --max-time 10 --user "$(cat ${cookiePath})" -H 'content-type: text/plain;' --data-binary "$1" http://${nodeRpc}/; }
+H=$(rpc '{"jsonrpc":"1.0","id":"g","method":"getbestblockhash","params":[]}' | sed -n 's/.*"result":"\\([0-9a-f]*\\)".*/\\1/p')
+[ -n "$H" ] || exit 3
+HDR=$(rpc "{\\"jsonrpc\\":\\"1.0\\",\\"id\\":\\"h\\",\\"method\\":\\"getblockheader\\",\\"params\\":[\\"$H\\",false]}" | sed -n 's/.*"result":"\\([0-9a-f]*\\)".*/\\1/p')
+[ -n "$HDR" ] || exit 3
+printf '%s' "\${#HDR}"`
+
+    const res = await container.exec(['bash', '-c', probe], {})
+    const hexChars = Number(res.stdout.toString().trim())
+
+    if (res.exitCode !== 0 || !Number.isFinite(hexChars) || hexChars === 0) {
+      // Unreachable rather than wrong. Refuse this start so StartOS retries, instead of creating an
+      // irreversible database on an unverified chain.
+      throw new Error(
+        'Cannot reach the Bitcoin node to confirm which chain it is on. Refusing to build an index ' +
+          'until it answers, because the header format is fixed when the index is created.',
+      )
+    }
+
+    // 328 hex characters is a 164-byte v2 header. 160 is the ordinary 80-byte one.
+    if (hexChars !== 328) {
+      throw new Error(
+        `The connected Bitcoin node is not on the Bitcoin Blake2b chain: its tip header is ` +
+          `${hexChars / 2} bytes, and a BLAKE2b chain serves 164. This package indexes only that ` +
+          `chain, and the header size is fixed permanently when the index is created, so it will ` +
+          `not start against any other. Point it at a Bitcoin Blake2b node, or if this node is on ` +
+          `that chain but has not yet reached the activation height, let it finish syncing first.`,
+      )
+    }
+    console.info('Chain guard: node serves 164-byte headers, this is the Bitcoin Blake2b chain.')
+  }
 
   /**
    * How far the index has got, and how far it has to go.

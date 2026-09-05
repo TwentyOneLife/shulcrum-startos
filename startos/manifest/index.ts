@@ -25,23 +25,23 @@ export const manifest = setupManifest({
   /**
    * One node, required, not a picklist.
    *
-   * The template this package is modelled on offers several bitcoind flavors and picks one at
-   * runtime. That generality is wrong here: `extended_headers` fixes the on-disk header record
-   * size at 164 bytes and cannot be changed on an existing database, so a package that could be
-   * repointed at an 80-byte chain would be a package that can invalidate its own index through a
-   * setting. Declining the choice is what makes that setting safe rather than merely documented.
+   * `bitcoind` is the id a BLAKE2b build takes when it is sideloaded over the official package,
+   * which is what our target node runs and what this package is built to index.
    *
-   * A BLAKE2b build sideloaded over the official `bitcoind` id is a real configuration and is
-   * deliberately not supported yet: supporting it means reintroducing the picklist, which should
-   * follow demand rather than precede it.
+   * An earlier version required `knots-blake2b` instead, reasoning that a single fixed dependency
+   * stops the package being repointed at an 80-byte chain and invalidating its own index, since
+   * `extended_headers` cannot be changed once the database exists. That reasoning does not hold: a
+   * dependency id is not evidence of a chain, and the two chains share every block up to 961639, so
+   * nothing declared here can tell them apart. The chain is checked where it can actually be
+   * checked, against the node itself, before the irreversible database is created. See main.ts.
    */
   dependencies: {
-    'knots-blake2b': {
+    bitcoind: {
       description: nodeDescription,
       optional: false,
       metadata: {
-        title: 'Bitcoin Knots (BLAKE2b) Companion',
-        icon: 'https://raw.githubusercontent.com/paulscode/knots-blake2b-startos/main/dep-icon.png',
+        title: 'Bitcoin Knots',
+        icon: 'https://raw.githubusercontent.com/Start9Labs/bitcoin-core-startos/refs/heads/30.x/dep-icon.svg',
       },
     },
   },

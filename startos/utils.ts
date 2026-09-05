@@ -1,5 +1,5 @@
 import { T } from '@start9labs/start-sdk'
-import { rpcHostId, rpcPort } from 'knots-blake2b-startos/startos/utils'
+import { rpcHostId, rpcPort } from 'bitcoin-core-startos/startos/utils'
 import { sdk } from './sdk'
 
 /** Electrum plaintext, inside the container. TLS is added by the interface binding. */
@@ -11,8 +11,15 @@ export const port = 50001
  */
 export const electrumHostId = 'electrum'
 
-/** The node package this service indexes. Named once; every reference resolves through here. */
-export const nodeId = 'knots-blake2b'
+/**
+ * The node package this service indexes. Named once; every reference resolves through here.
+ *
+ * `bitcoind` rather than `knots-blake2b`, because that is the id a BLAKE2b build sideloaded over
+ * the official package takes, and it is what our target node actually runs. The id says nothing
+ * about which chain the node is on, which is why main.ts guards the chain directly instead of
+ * inferring it from here.
+ */
+export const nodeId = 'bitcoind'
 
 /** Where the node's read-only volume is mounted in our container. */
 export const nodeMountpoint = '/mnt/bitcoin'
@@ -20,10 +27,10 @@ export const nodeMountpoint = '/mnt/bitcoin'
 /**
  * The node's RPC cookie, as our container sees it.
  *
- * At the datadir root rather than under a chain-named subdirectory, because the node package is
- * mainnet only: it dropped its chain selector in 1.0.0:30, and mainnet is the one chain bitcoind
- * does not nest. The version range in dependencies.ts is what keeps that true, so the two must
- * move together.
+ * At the datadir root, which is where bitcoind keeps it on mainnet. Every other chain nests it in a
+ * subdirectory named for that chain. The official package offers those other chains, so this is an
+ * assumption rather than a certainty, and it is one the chain guard in main.ts fails loudly on
+ * rather than silently mis-authenticating: a BLAKE2b chain is a mainnet chain.
  */
 export const cookiePath = `${nodeMountpoint}/.cookie`
 

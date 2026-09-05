@@ -15,23 +15,30 @@ import { nodeId } from './utils'
  * Both are standing requirements rather than one-time checks. A user who enables pruning after
  * the index is built breaks the service just as surely as one who never disabled it.
  *
- * Health checks: `node` and `chain`, not `sync-progress`. The node package gained a sync check in
- * 1.0.0:31, so requiring it would work, but `chain` already fails below the fork activation
- * height and a second check that stays amber through the whole of initial sync would say nothing
- * new. `chain` is the one that matters: the two chains share every block up to 961639, so a node
- * with no peers on the fork sits just below activation looking perfectly synced. Being synced does
- * not establish which chain a node is on.
+ * Health checks are the official package's own ids, `bitcoind` and `sync-progress`. Requiring an id
+ * a package does not declare is indistinguishable from requiring a failing one: StartOS reads
+ * `health[id]`, gets `undefined`, and shows "Required health check not passing" forever, unable to
+ * even name the check. `knots-blake2b`'s `node` and `chain` ids do not exist here.
+ *
+ * Note what that costs us. `chain` was the check that established which chain the node follows, and
+ * the official package has no equivalent, because on the chain it was written for the question does
+ * not arise. Nothing in this dependency block can tell a BLAKE2b node from an ordinary one: the two
+ * share every block up to 961639, so `sync-progress` passes on both. That gap is why the chain guard
+ * in main.ts exists, and it is not optional.
  */
 export const setDependencies = sdk.setupDependencies(async ({ effects }) => {
   return {
     [nodeId]: {
       kind: 'running' as const,
-      healthChecks: ['node', 'chain'],
-      // Gated on the release that dropped the chain selector and became mainnet only, because the
-      // cookie path in utils.ts assumes the datadir root rather than a chain-named subdirectory.
-      // Left as a floor to be re-read at packaging time: this dependency shipped several releases
-      // in the week this was written, so the range is the most perishable line in the package.
-      versionRange: '>=1.0.0:30',
+      healthChecks: ['bitcoind', 'sync-progress'],
+      // Mirrored from electrs-pruned-startos, which is verified against this family of nodes.
+      // Our own requirement is weaker than theirs, since we need no `peer-local` host and open no
+      // P2P connection, so this range is stricter than it has to be. Left strict rather than
+      // guessed at, and flagged on #10 to be confirmed against the real node at install: a
+      // flavored version such as `#knots:29.4.1:6` does not satisfy an unflavored range directly,
+      // it matches through the package's own `satisfies` list, and that is not a thing to assume.
+      versionRange:
+        '(>=28.4:17 && <29) || (>=29.4:4 && <30) || (>=30.3:4 && <31) || >=31.1:4',
     },
   } as any
 })

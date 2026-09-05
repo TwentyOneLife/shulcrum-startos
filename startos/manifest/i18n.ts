@@ -4,7 +4,8 @@
  * Translations land before release, from someone who speaks the language.
  */
 export const nodeDescription = {
-  en_US: 'Supplies the blocks and transactions this server indexes, over its RPC interface.',
+  en_US:
+    'Supplies the blocks and transactions this server indexes, over its RPC interface. It must be a Bitcoin Blake2b node, unpruned, with a transaction index.',
 }
 
 export const short = {
