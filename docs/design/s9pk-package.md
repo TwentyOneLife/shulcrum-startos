@@ -163,7 +163,8 @@ chain and disagree on pruning, `txindex`, P2P, and the backend picklist. What is
 the disagreements is the SDK skeleton, which is better copied deliberately than inherited and then
 argued with.
 
-**Ship a prebuilt binary.** Rejected under the sovereign-code guardrail. Building from a pinned
+**Ship a prebuilt binary.** Rejected: it would put an unverifiable artifact in the install path.
+Building from a pinned
 source revision in the image keeps the whole chain auditable and leaves nothing to verify by hash
 and signature at install time.
 

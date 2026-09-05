@@ -45,6 +45,6 @@ against a live Bitcoin Blake2b node and is the gate on Phase 4.
 - Heavier container build (Qt + RocksDB from source) than a Rust indexer. Roughly 4 minutes on a
   hosted runner, and it must not share a host with a running index: together they exhaust memory.
 - The node package enforces neither `txindex` nor an unpruned chain, and its `index-sync` health
-  check does not stand in for either. Tracked internally; a runtime probe is the route.
+  check does not stand in for either, so the package checks the node itself at startup.
 
 License: GPLv3. Contributions: see `CONTRIBUTING.md`.

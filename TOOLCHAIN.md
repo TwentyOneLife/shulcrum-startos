@@ -1,8 +1,7 @@
 # Verifying the build toolchain
 
-Building the `.s9pk` needs `start-cli`, a third-party binary. The guardrails require any such
-artifact to be verified by checksum and signature before it is trusted, with its provenance
-recorded. This is that record.
+Building the `.s9pk` needs `start-cli`, a third-party binary. Any such artifact is verified by
+checksum and signature before it is trusted, and its provenance is recorded. This is that record.
 
 ## What we pin
 

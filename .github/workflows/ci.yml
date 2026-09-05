@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Actions are pinned to a commit rather than a tag. A tag moves, and a moving third-party
-      # action is an unpinned dependency with write access to the build (GUARDRAILS §4).
+      # action is an unpinned dependency with write access to the build.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Repo hygiene
         run: |
