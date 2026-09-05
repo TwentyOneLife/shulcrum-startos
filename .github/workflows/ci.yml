@@ -92,6 +92,19 @@ jobs:
           printf 'schema: 1\nregistry:\n  default: https://registry.start9.com\n' \
             > "$ws/.startos/config.yaml"
 
+      - name: Install the host tools start-cli shells out to
+        # start-cli turns the exported image into squashfs by calling tar2sqfs and mksquashfs on the
+        # host. Neither ships on a hosted runner, and the SDK's own `check-deps` does not look for
+        # them: it checks start-cli, npm, git and jq only. So the build compiles all of Shulcrum
+        # first and then dies on a missing binary, which is an expensive way to learn this.
+        run: |
+          set -euo pipefail
+          sudo apt-get -qq update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends \
+            squashfs-tools-ng squashfs-tools
+          tar2sqfs --version | head -1
+          command -v mksquashfs
+
       - name: Use a buildx driver that can export an image
         # start-cli packs the service image by asking buildx for a docker format export. The
         # runner's default builder uses the `docker` driver, which cannot do that and fails with

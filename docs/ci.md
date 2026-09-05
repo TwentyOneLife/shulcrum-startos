@@ -72,6 +72,28 @@ where the default driver handles the export. Check yours with `docker info | gre
 before concluding a failure is in the package. CI creates a `docker-container` builder, which runs
 BuildKit in its own container and supports the exporter.
 
+### The SDK's dependency check does not cover the host tools
+
+`make` runs the SDK's `check-deps`, which looks for `start-cli`, `npm`, `git` and `jq`. `start-cli`
+also shells out to **`tar2sqfs`** and **`mksquashfs`** to turn the exported image into squashfs, and
+`check-deps` does not look for either. A runner without them compiles the whole of Shulcrum, exports
+the image, and only then fails:
+
+```
+Docker Error: tar2sqfs: No such file or directory (os error 2)
+```
+
+On Ubuntu these come from `squashfs-tools-ng` and `squashfs-tools` respectively. Neither is present
+on a hosted runner, and neither was present on the workstation either, which is why no local build
+had ever reached this stage.
+
+If you add a step that calls `start-cli`, check what the binary itself invokes rather than trusting
+`check-deps`:
+
+```sh
+strings start-cli | grep -E 'tar2sqfs|mksquashfs|docker|buildx'
+```
+
 ### A green watch command is not a green run
 
 `gh run watch --exit-status` has exited 0 on a run whose conclusion was `failure`. Read the run's own
