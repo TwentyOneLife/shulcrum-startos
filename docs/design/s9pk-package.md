@@ -101,10 +101,24 @@ and values `main.ts` resolves at start:
 Cookie authentication rather than a user and password, via Fulcrum's `rpccookie` option, so no RPC
 credential is generated, stored or backed up by this package.
 
-The cookie path is taken as the node's datadir root. `knots-blake2b` dropped its chain selector in
-1.0.0:30 and is mainnet only, and mainnet keeps the cookie at the root rather than in a
-chain-named subdirectory. This is an assumption about the dependency, so the version range must not
-admit a release older than that.
+The cookie path is taken as the node's datadir root, which is where bitcoind keeps it on mainnet.
+
+> **This became a defect when the dependency changed, 2026-09-05.** The simplification was sound
+> against `knots-blake2b`, which dropped its chain selector in 1.0.0:30 and is mainnet only. It is
+> not sound against `bitcoind`, which offers testnet, signet and regtest, and nests a non-mainnet
+> chain's data, cookie included, in a subdirectory named for that chain. A hardcoded root path
+> simply fails to authenticate there.
+>
+> Worse, it fails confusingly. The chain guard needs the cookie to reach the node, so a wrong cookie
+> path surfaces as "cannot reach the node" rather than "wrong chain directory".
+>
+> The fix is the one the template already uses and this design dropped: read the node's own
+> `bitcoin.conf` through the mount, look for a `<chain>=1` line, and derive the path from its
+> absence or presence. Tracked as #24.
+>
+> Worth noting how this was missed. The dependency change was reviewed as a change to three files;
+> the assumption it invalidated lived in a fourth, three sections away in this document, and read
+> perfectly true on its own terms.
 
 ### Interfaces and health (#11)
 
@@ -164,10 +178,13 @@ silent demand for a full re-index.
   requirement rather than a one-time check.
 - **`extended_headers` is irreversible.** Mitigated by never exposing it and by refusing to support
   a non-BLAKE2b backend.
-- **The cookie path assumption** breaks if the node package reintroduces a chain selector. Mitigated
-  by the version range; would surface as an authentication failure rather than silent corruption.
-- **The dependency is young and moving fast.** `knots-blake2b-startos` shipped several releases in
-  the past week. Version ranges here need review at packaging time, not at design time.
+- **The cookie path is wrong on any non-mainnet chain**, now that the dependency is `bitcoind` and
+  not a mainnet-only package. Surfaces as an authentication failure, and through the chain guard as
+  a misleading "cannot reach the node". See #24; the fix is to derive it from the node's config.
+- **The version range is inherited rather than reasoned.** It is mirrored from
+  `electrs-pruned-startos`, which is verified against this family of nodes but gates on a
+  `peer-local` host we do not need. A flavored version such as `#knots:29.4.1:6` does not satisfy an
+  unflavored range directly, so this needs confirming at install rather than at design time.
 - **We have not yet verified the server on mainnet.** Packaging ahead of phase 3 is deliberate, to
   use the indexing wait, but the package must not be released before the verification issues close.
 
