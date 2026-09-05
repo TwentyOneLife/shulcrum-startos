@@ -83,3 +83,29 @@ get answers for a chain it is not on. That is a correctness setting, not a priva
 - **"not on the Bitcoin Blake2b chain"**: the node is on a different chain, or it is on this one but
   has not yet reached the fork height. Let it finish syncing.
 - **Address lookups time out during the first index**: expected. See above.
+
+## Supporting this work
+
+If Shulcrum is useful to you, donations go to TwentyOne.Life:
+
+**BitcoinB2B**
+
+```
+1BH665bXvEqSuoWQUihiQiPpt2BqpzrgGD
+```
+
+As a URI, which is what the QR below encodes:
+
+```
+bitcoin:1BH665bXvEqSuoWQUihiQiPpt2BqpzrgGD
+```
+
+<img src="assets/donation-qr.png" alt="BitcoinB2B donation address for TwentyOne.Life" width="220">
+
+**Read this before sending.** Bitcoin Blake2b shares Bitcoin's address format and its genesis block,
+so the address above is a perfectly valid Bitcoin address as well, and nothing about it says which
+chain it belongs to. Send from a Bitcoin Blake2b wallet. Bitcoin sent to it is a different asset and
+is not a donation to this project, whatever your wallet shows you.
+
+There is no way to make that distinction visible in the address itself. It is a property of the
+fork, not an oversight.
