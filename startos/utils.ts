@@ -28,15 +28,39 @@ export const nodeId = 'bitcoind'
 /** Where the node's read-only volume is mounted in our container. */
 export const nodeMountpoint = '/mnt/bitcoin'
 
+/** The chains bitcoind nests under a subdirectory of the datadir. Mainnet writes no such line. */
+const NESTED_CHAINS = ['regtest', 'testnet4', 'testnet', 'signet'] as const
+
+/**
+ * Which chain the node is on, read from its own generated config rather than configured here, so
+ * the two cannot drift. Ordered longest-first is not needed: the match is on a whole line.
+ */
+export const chainFromConf = (conf: string | null) =>
+  NESTED_CHAINS.find((c) =>
+    conf?.split('\n').some((l) => l.trim() === `${c}=1`),
+  ) ?? null
+
 /**
  * The node's RPC cookie, as our container sees it.
  *
- * At the datadir root, which is where bitcoind keeps it on mainnet. Every other chain nests it in a
- * subdirectory named for that chain. The official package offers those other chains, so this is an
- * assumption rather than a certainty, and it is one the chain guard in main.ts fails loudly on
- * rather than silently mis-authenticating: a BLAKE2b chain is a mainnet chain.
+ * Derived, not hardcoded. bitcoind keeps a non-mainnet chain's data, cookie included, in a
+ * subdirectory named for that chain, and the `bitcoind` package offers all of them. A fixed root
+ * path is simply wrong there, and it fails in the least helpful way available: the chain guard
+ * needs this cookie to reach the node, so a wrong path reports "cannot reach the node" and says
+ * nothing about directories.
+ *
+ * A BLAKE2b chain is a mainnet chain, so in practice this resolves to the root every time. The
+ * value is that a misconfigured node fails with its actual cause.
  */
-export const cookiePath = `${nodeMountpoint}/.cookie`
+export const cookiePathFor = (chain: string | null) =>
+  chain ? `${nodeMountpoint}/${chain}/.cookie` : `${nodeMountpoint}/.cookie`
+
+/**
+ * Seed value for the config file, before a node is mounted and its chain can be read. main.ts
+ * overwrites it with the resolved path on every start, so this is only ever what the file holds
+ * between first init and first run.
+ */
+export const defaultCookiePath = cookiePathFor(null)
 
 /**
  * Fulcrum's admin RPC, loopback inside the container only.

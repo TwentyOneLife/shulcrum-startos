@@ -6,7 +6,8 @@ import { i18n } from './i18n'
 import { sdk } from './sdk'
 import {
   adminPort,
-  cookiePath,
+  chainFromConf,
+  cookiePathFor,
   nodeId,
   nodeMountpoint,
   nodeRpcBridge,
@@ -22,9 +23,6 @@ export const main = sdk.setupMain(async ({ effects }) => {
   // the node is absent this is null and the field is omitted rather than filled with a
   // placeholder.
   const nodeRpc = await nodeRpcBridge(effects)
-  await confFile.merge(effects, {
-    ...(nodeRpc && { bitcoind: nodeRpc }),
-  })
 
   const container = sdk.SubContainer.of(
     effects,
@@ -47,6 +45,35 @@ export const main = sdk.setupMain(async ({ effects }) => {
   )
 
   const rootfs = await container.rootfs
+
+  /**
+   * Which chain the node is on, read from its own generated config.
+   *
+   * Read rather than configured, so the two cannot drift: the node regenerates that file on every
+   * start, and this reactive read restarts us when it changes. Deriving the chain from the absence
+   * of a chain line rather than from the package id is what keeps this working if the node ever
+   * moves chain without changing its id.
+   */
+  const nodeConf = await FileHelper.string(`${rootfs}${nodeMountpoint}/bitcoin.conf`)
+    .read(
+      (c) => c,
+      (prev, next) => next === null || prev === next,
+    )
+    .const(effects)
+
+  const chain = chainFromConf(nodeConf)
+  const cookiePath = cookiePathFor(chain)
+  if (chain) {
+    console.warn(
+      `The node reports chain "${chain}". This package indexes the Bitcoin Blake2b mainnet chain; ` +
+        `the chain guard below will refuse to build an index here.`,
+    )
+  }
+
+  await confFile.merge(effects, {
+    ...(nodeRpc && { bitcoind: nodeRpc }),
+    rpccookie: cookiePath,
+  })
 
   // Restart when the node writes a replacement cookie, and only then. An absent cookie means the
   // node is down rather than that the credential changed, so a null read is not a change.
@@ -76,6 +103,9 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const dbPath = `${rootfs}/mnt/shulcrum/db`
   if (!existsSync(dbPath) && nodeRpc) {
     const probe = `set -e
+# Distinct exit code, because a cookie we cannot read and a node we cannot reach are different
+# faults with different fixes, and reporting the first as the second is what #24 was about.
+[ -r "${cookiePath}" ] || exit 4
 rpc() { curl -s --max-time 10 --user "$(cat ${cookiePath})" -H 'content-type: text/plain;' --data-binary "$1" http://${nodeRpc}/; }
 H=$(rpc '{"jsonrpc":"1.0","id":"g","method":"getbestblockhash","params":[]}' | sed -n 's/.*"result":"\\([0-9a-f]*\\)".*/\\1/p')
 [ -n "$H" ] || exit 3
@@ -86,12 +116,22 @@ printf '%s' "\${#HDR}"`
     const res = await container.exec(['bash', '-c', probe], {})
     const hexChars = Number(res.stdout.toString().trim())
 
+    if (res.exitCode === 4) {
+      throw new Error(
+        `Cannot read the Bitcoin node's RPC cookie at ${cookiePath}. The node reports chain ` +
+          `"${chain ?? 'main'}", so that is where its cookie should be. Either the node has not ` +
+          `started yet and has not written one, or it is on a different chain than its config says.`,
+      )
+    }
+
     if (res.exitCode !== 0 || !Number.isFinite(hexChars) || hexChars === 0) {
       // Unreachable rather than wrong. Refuse this start so StartOS retries, instead of creating an
       // irreversible database on an unverified chain.
       throw new Error(
-        'Cannot reach the Bitcoin node to confirm which chain it is on. Refusing to build an index ' +
-          'until it answers, because the header format is fixed when the index is created.',
+        'Cannot reach the Bitcoin node to confirm which chain it is on. The cookie was readable, ' +
+          'so this is the node not answering rather than an authentication problem. Refusing to ' +
+          'build an index until it answers, because the header format is fixed when the index is ' +
+          'created.',
       )
     }
 
