@@ -40,5 +40,5 @@ export const setDependencies = sdk.setupDependencies(async ({ effects }) => {
       versionRange:
         '(>=28.4:17 && <29) || (>=29.4:4 && <30) || (>=30.3:4 && <31) || >=31.1:4',
     },
-  } as any
+  }
 })

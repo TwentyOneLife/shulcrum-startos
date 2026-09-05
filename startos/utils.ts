@@ -28,6 +28,16 @@ export const nodeId = 'bitcoind'
 /** Where the node's read-only volume is mounted in our container. */
 export const nodeMountpoint = '/mnt/bitcoin'
 
+/** Fulcrum's datadir, named once so `fulcrum.conf` and the chain guard cannot drift apart. */
+export const dataDir = '/mnt/shulcrum/db'
+
+/**
+ * The subdirectory Fulcrum creates inside the datadir for the store itself, `kDBName` in its
+ * Storage.cpp. It is the only honest test for "an index exists": the datadir is created during
+ * option parsing, before the store is opened and before any node is contacted.
+ */
+export const storeSubdir = 'fulc2_db'
+
 /** The chains bitcoind nests under a subdirectory of the datadir. Mainnet writes no such line. */
 const NESTED_CHAINS = ['regtest', 'testnet4', 'testnet', 'signet'] as const
 

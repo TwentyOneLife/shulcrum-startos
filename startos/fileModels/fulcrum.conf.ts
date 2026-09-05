@@ -1,6 +1,6 @@
 import { FileHelper, z } from '@start9labs/start-sdk'
 import { sdk } from '../sdk'
-import { adminPort, defaultCookiePath, port } from '../utils'
+import { adminPort, dataDir, defaultCookiePath, port } from '../utils'
 
 /**
  * Fulcrum's config is flat `key = value` lines with unquoted values, which is what the SDK's ini
@@ -36,11 +36,15 @@ export const shape = z.object({
    */
   rpccookie: z.string().catch(defaultCookiePath),
 
-  datadir: z.string().catch('/mnt/shulcrum/db'),
+  datadir: z.string().catch(dataDir),
 
   /**
-   * Loopback only, both of them. The container binding is what StartOS then exports; binding
-   * 0.0.0.0 here would expose the plaintext port beyond what the interface actually offers.
+   * `tcp` binds every interface inside the container on purpose: that binding is what StartOS
+   * exports over the LXC bridge, and narrowing it to loopback would leave the Electrum interface
+   * and the Mempool Guide path with nothing to reach. Container-internal, not host-exposed.
+   *
+   * `admin` is the loopback-only one. It is an unauthenticated control socket and nothing outside
+   * this container has any business reaching it.
    */
   tcp: z.string().catch(`0.0.0.0:${port}`),
   admin: z.string().catch(`127.0.0.1:${adminPort}`),
@@ -54,8 +58,14 @@ export const shape = z.object({
   peering: z.literal(false).catch(false),
   announce: z.literal(false).catch(false),
 
-  /** RocksDB memory, MiB. Fulcrum 2.x removed fast-sync and routes this through db_mem instead. */
-  db_mem: z.number().optional().catch(undefined),
+  /**
+   * RocksDB memory, MiB. Fulcrum 2.x removed fast-sync and routes this through db_mem instead.
+   *
+   * Coerced, because an ini file has no numbers. The parser returns `"4096"` for `db_mem = 4096`,
+   * which a bare `z.number()` rejects and `.catch(undefined)` then swallows, so main's next write
+   * of this file would silently delete whatever the user had tuned.
+   */
+  db_mem: z.coerce.number().optional().catch(undefined),
 })
 
 export const confFile = FileHelper.ini(

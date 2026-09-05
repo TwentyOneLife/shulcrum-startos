@@ -8,10 +8,12 @@ import {
   adminPort,
   chainFromConf,
   cookiePathFor,
+  dataDir,
   nodeId,
   nodeMountpoint,
   nodeRpcBridge,
   port,
+  storeSubdir,
 } from './utils'
 
 export const main = sdk.setupMain(async ({ effects }) => {
@@ -49,19 +51,19 @@ export const main = sdk.setupMain(async ({ effects }) => {
   /**
    * Which chain the node is on, read from its own generated config.
    *
-   * Read rather than configured, so the two cannot drift: the node regenerates that file on every
-   * start, and this reactive read restarts us when it changes. Deriving the chain from the absence
-   * of a chain line rather than from the package id is what keeps this working if the node ever
-   * moves chain without changing its id.
+   * Read rather than configured, so the two cannot drift, and restarting us if the node ever moves
+   * chain. Deriving that from the absence of a chain line rather than from the package id is what
+   * keeps this working when the id stays the same across such a move.
    */
-  const nodeConf = await FileHelper.string(`${rootfs}${nodeMountpoint}/bitcoin.conf`)
+  const chain = await FileHelper.string(`${rootfs}${nodeMountpoint}/bitcoin.conf`)
     .read(
-      (c) => c,
+      // Map to the chain, not to the file. The reactive key is whatever this returns, so mapping
+      // the whole file would restart us mid-index every time the node's owner changed dbcache or
+      // turned on ZMQ. The chain is the only thing here we consume.
+      (c) => chainFromConf(c),
       (prev, next) => next === null || prev === next,
     )
     .const(effects)
-
-  const chain = chainFromConf(nodeConf)
   const cookiePath = cookiePathFor(chain)
   if (chain) {
     console.warn(
@@ -75,15 +77,11 @@ export const main = sdk.setupMain(async ({ effects }) => {
     rpccookie: cookiePath,
   })
 
-  // Restart when the node writes a replacement cookie, and only then. An absent cookie means the
-  // node is down rather than that the credential changed, so a null read is not a change.
-  await FileHelper.string(`${rootfs}${cookiePath}`)
-    .read(
-      (cookie) => cookie,
-      (prev, next) => next === null || prev === next,
-    )
-    .const(effects)
-
+  // The cookie is deliberately not watched. bitcoind rewrites it on every start, so watching it
+  // would restart this service, dropping every wallet connection and closing a multi-GB store,
+  // each time the node restarts or updates. Fulcrum does not need that: `-K/--rpccookie` is
+  // "read and re-parsed each time we (re)connect to bitcoind", so it picks up the new credential
+  // by itself on the reconnect it was going to make anyway.
 
   /**
    * The chain guard.
@@ -99,8 +97,15 @@ export const main = sdk.setupMain(async ({ effects }) => {
    *
    * Only on first index. Once the database exists it already encodes the answer, and re-checking
    * would turn a node being briefly unreachable into a refusal to start.
+   *
+   * The test is the store's own subdirectory, not the datadir. Fulcrum creates the datadir while it
+   * parses options, before it opens the database and before it has spoken to any node, so a launch
+   * that dies after argument parsing for any reason at all leaves an empty datadir behind. Testing
+   * the datadir would read that as "already indexed" and skip the guard from then on, disabling it
+   * permanently after a single failed start, which is exactly when it still needs to run. `fulc2_db`
+   * is Storage.cpp's kDBName and appears only once the store itself is opened.
    */
-  const dbPath = `${rootfs}/mnt/shulcrum/db`
+  const dbPath = `${rootfs}${dataDir}/${storeSubdir}`
   if (!existsSync(dbPath) && nodeRpc) {
     const probe = `set -e
 # Distinct exit code, because a cookie we cannot read and a node we cannot reach are different
