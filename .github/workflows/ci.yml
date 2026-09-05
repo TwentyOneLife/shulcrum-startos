@@ -92,6 +92,20 @@ jobs:
           printf 'schema: 1\nregistry:\n  default: https://registry.start9.com\n' \
             > "$ws/.startos/config.yaml"
 
+      - name: Use a buildx driver that can export an image
+        # start-cli packs the service image by asking buildx for a docker format export. The
+        # runner's default builder uses the `docker` driver, which cannot do that and fails with
+        # "Docker exporter is not supported for the docker driver".
+        #
+        # This does not reproduce on a workstation that has the containerd image store turned on,
+        # where the default driver handles the export, so it is a difference between the desktop
+        # this package was first built on and a hosted runner rather than a change in the package.
+        # A docker-container builder runs BuildKit in its own container and supports the exporter.
+        run: |
+          set -euo pipefail
+          docker buildx create --name s9pk --driver docker-container --use
+          docker buildx inspect --bootstrap
+
       - name: Build the .s9pk
         run: |
           npm ci
