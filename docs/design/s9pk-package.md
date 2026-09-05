@@ -54,6 +54,36 @@ deliberately **not** supported in the skeleton. It is a real configuration, but 
 reintroducing the picklist, and it should be a later change justified by demand rather than a
 speculative one now.
 
+> **Correction, 2026-09-05.** That paragraph was wrong about which configuration is speculative. Our
+> actual target node runs the sideloaded arrangement: its BLAKE2b node is installed under the
+> `bitcoind` id at `#knots:29.4.1:6`, and `knots-blake2b` is not installed at all. Verified over SSH:
+> chain `main`, height 967899, unpruned, `txindex` synced, and a 164-byte header at the tip. So the
+> dependency this package declares is one the target does not have, and the configuration ruled out
+> as speculative is the only one we can actually test against. See the revision below.
+
+### Revision: depend on `bitcoind`, and guard the chain at runtime
+
+The original reasoning ran: `extended_headers` is irreversible, so refusing a node picklist stops the
+package being repointed at an 80-byte chain and invalidating its own index.
+
+**That reasoning was half wrong, and finding the real node is what exposed it.** A dependency id was
+never evidence of a chain. This document already says so a few lines further down, about health
+checks: the two chains share every block up to 961639, so being synced does not establish which
+chain a node is on. `knots-blake2b` could itself be on the wrong chain; the id would not say.
+
+So the id was doing protection work it was never capable of, while excluding the one node we have.
+
+The fix separates the two concerns properly:
+
+- **Depend on `bitcoind`**, which is what the target actually runs, and what a Retropex-style
+  sideload always produces.
+- **Guard the chain where it can actually be checked**, at startup, before the irreversible database
+  is created: ask the node for a header and refuse to index if the chain has produced no v2 header.
+  That is a real check against a real fact, and it protects the `knots-blake2b` case too.
+
+This is strictly stronger than the original design. It is also more code, and the guard has to run
+before first index rather than as a health check afterwards, because afterwards is too late.
+
 ### Config model
 
 `fulcrum.conf`, written through a `FileHelper`, following the template's split between static values
