@@ -1,11 +1,10 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 const notes =
-  'Adds a donation address, and the package documentation StartOS renders in the ' +
-  'service view. Guards the node requirements at startup: the service now refuses ' +
-  'to start against a node with no transaction index or a pruned chain, rather ' +
-  'than starting and failing every transaction query. A rejected RPC credential is ' +
-  'reported as an authentication problem rather than an unreachable node.'
+  'The donation link on the About tab now opens a page instead of rendering as ' +
+  'unclickable text: StartOS linkifies only http and https, so a bitcoin URI sat ' +
+  'there dead. The address and its QR are still in the instructions, where they ' +
+  'can be copied without leaving the service view.'
 
 export const current = VersionInfo.of({
   // Marks this as a flavor of `fulcrum` rather than a replacement for it. Upstream is Fulcrum
@@ -17,7 +16,7 @@ export const current = VersionInfo.of({
   // The revision after the flavor is ours, not upstream's. It moves whenever this package changes
   // while Fulcrum does not, which is what stops a changed package reaching an installed instance
   // under a version string that already means something else.
-  version: '#blake:2.1.2:1',
+  version: '#blake:2.1.2:2',
   releaseNotes: { en_US: notes },
   migrations: {
     up: async ({ effects }) => {},

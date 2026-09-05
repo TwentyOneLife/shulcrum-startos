@@ -21,17 +21,17 @@ export const manifest = setupManifest({
   packageRepo: 'https://github.com/TwentyOneLife/shulcrum-startos',
   upstreamRepo: 'https://github.com/TwentyOneLife/Shulcrum',
   marketingUrl: 'https://github.com/TwentyOneLife/Shulcrum',
-  // A bitcoin URI rather than a web page, so a wallet with a handler registered opens on a click and
-  // everyone else can still read the address off it. StartOS renders this as a link on the About tab.
+  // A web page, not a `bitcoin:` URI. The URI was tried first and StartOS renders it as dead text:
+  // the About tab gives Marketing an external-link affordance and gives Donations none, because it
+  // only linkifies http and https. Observed on a real install rather than reasoned about.
   //
-  // No label parameter, deliberately. This is the same string the QR in instructions.md encodes, and
-  // a label costs two QR versions, turning a 29x29 grid into 37x37. The page already names who the
-  // donation is for, so the label bought density for nothing.
+  // The profile page carries the address, the same URI, and a QR of it, so one click reaches
+  // everything a donor needs. It also means the address can be rotated without shipping a new
+  // package, which a manifest field cannot do: a manifest is fixed for the life of a version.
   //
-  // Read the warning in instructions.md before sending anything: this chain shares Bitcoin's address
-  // format and its genesis block, so this address is equally valid on Bitcoin and a payment sent
-  // there is a different asset.
-  donationUrl: 'bitcoin:1BH665bXvEqSuoWQUihiQiPpt2BqpzrgGD',
+  // `instructions.md` still carries the address and QR inline, because StartOS renders that in the
+  // service view and copy-paste there beats a round trip to a browser.
+  donationUrl: 'https://github.com/TwentyOneLife',
   description: { short, long },
   volumes: ['main'],
   images: {
