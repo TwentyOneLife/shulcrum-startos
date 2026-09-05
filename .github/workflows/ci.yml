@@ -65,31 +65,39 @@ jobs:
           start-cli --version
 
       - name: Set up the packaging workspace
-        # start-cli 2.0 packs from a *workspace*, the directory containing package repos, not from
-        # the repo itself. The workspace also holds .startos/build.key.pem, which signs the s9pk
-        # root. That key is restored from a secret rather than generated: init-workspace makes a
-        # fresh one every time, and a package signed by a different key on every build is a
-        # different publisher on every build.
+        # start-cli 2.0 packs from a *workspace*, the directory that contains package repos, not
+        # from the repo itself. On a runner that parent already exists, so the workspace is marked
+        # in place rather than built somewhere else.
+        #
+        # Two things this got wrong once, both worth keeping written down. Marking a directory
+        # elsewhere and symlinking the checkout into it does not work: start-cli resolves the
+        # physical path, sees the real checkout, and looks for the marker in the real parent. And
+        # the marker is not one file. A .startos holding only config.yaml is reported exactly as if
+        # no workspace existed at all; it needs build.key.pem beside it before start-cli will
+        # recognise the directory.
+        #
+        # The key is restored from a secret rather than generated. init-workspace makes a fresh one
+        # every time, and a package signed by a different key on every build is a different
+        # publisher on every build. It also clones the whole Start9 monorepo, which a build does
+        # not need.
         env:
           S9PK_BUILD_KEY: ${{ secrets.S9PK_BUILD_KEY }}
         run: |
           set -euo pipefail
           test -n "$S9PK_BUILD_KEY"   # fail loudly rather than silently signing with a fresh key
-          mkdir -p /tmp/ws/.startos
-          printf '%s' "$S9PK_BUILD_KEY" > /tmp/ws/.startos/build.key.pem
-          chmod 600 /tmp/ws/.startos/build.key.pem
+          ws="$(dirname "$GITHUB_WORKSPACE")"
+          mkdir -p "$ws/.startos"
+          printf '%s' "$S9PK_BUILD_KEY" > "$ws/.startos/build.key.pem"
+          chmod 600 "$ws/.startos/build.key.pem"
           printf 'schema: 1\nregistry:\n  default: https://registry.start9.com\n' \
-            > /tmp/ws/.startos/config.yaml
-          ln -s "$GITHUB_WORKSPACE" /tmp/ws/package
+            > "$ws/.startos/config.yaml"
 
       - name: Build the .s9pk
-        working-directory: /tmp/ws/package
         run: |
           npm ci
           make x86
 
       - name: Record what was signed
-        working-directory: /tmp/ws/package
         # The root signature hash is the package's identity to a registry. Printing it here means a
         # change of signing key shows up in the build log rather than at install time.
         run: start-cli s9pk inspect *.s9pk commitment
