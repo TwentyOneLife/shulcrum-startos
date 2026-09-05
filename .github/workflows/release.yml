@@ -15,21 +15,36 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 20
-      - name: Build .s9pk
-        run: |
-          npm ci
-          make
+          node-version: 22
+
+      # The same action CI runs, so a release cannot be built by a path that has never been
+      # exercised. This job previously did none of it: no start-cli, no workspace, no buildx driver
+      # and no squashfs tools, so the first tag would have produced a red release rather than a
+      # signed one.
+      - uses: ./.github/actions/build-s9pk
+        with:
+          s9pk-build-key: ${{ secrets.S9PK_BUILD_KEY }}
+
       - name: Checksums
         run: sha256sum *.s9pk > SHA256SUMS
-      - name: GPG-sign checksums (org key)
+
+      - name: Sign the checksums with the release key
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        # Signs SHA256SUMS rather than each artifact: one signature covers every file listed, and a
+        # verifier checks the signature once and then the hashes. The private key here is the signing
+        # subkey only. The primary key certifies and never leaves the machine that made it, so a
+        # compromised runner costs a subkey rather than the identity.
         run: |
+          set -euo pipefail
+          test -n "$GPG_PRIVATE_KEY"
           echo "$GPG_PRIVATE_KEY" | gpg --batch --import
           gpg --batch --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
               --detach-sign --armor -o SHA256SUMS.asc SHA256SUMS
+          # Prove the signature verifies before publishing it, rather than finding out from a user.
+          gpg --batch --verify SHA256SUMS.asc SHA256SUMS
+
       - name: Publish release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:

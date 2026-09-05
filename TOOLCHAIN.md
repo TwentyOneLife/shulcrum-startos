@@ -58,6 +58,6 @@ expected: it means nobody has personally signed Start9's key, not that the signa
 ## Upgrading
 
 Change the version, the checksum and, if the signers change, the fingerprints, in
-`.github/workflows/ci.yml` and here, in the same commit. Re-run the steps above by hand first. A
-checksum bumped without a signature check is a checksum that records what arrived rather than what
+`.github/actions/build-s9pk/action.yml` and here, in the same commit. Re-run the steps above by
+hand first. A checksum bumped without a signature check is a checksum that records what arrived rather than what
 was meant to.

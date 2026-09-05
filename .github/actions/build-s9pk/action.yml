@@ -1,0 +1,115 @@
+name: Build the .s9pk
+description: >
+  Verifies start-cli, prepares the packaging environment and builds the package. Shared by CI and by
+  the release workflow so the two cannot drift, which they had: the release job was missing every
+  environment step CI needed and would have failed on the first tag.
+
+inputs:
+  s9pk-build-key:
+    description: >
+      PEM of the s9pk root signing key. Restored rather than generated: init-workspace makes a fresh
+      key every run, and a package signed by a different key on every build is a different publisher
+      on every build.
+    required: true
+  arch:
+    description: Architecture target, as named by the SDK's makefile.
+    required: false
+    default: x86
+
+runs:
+  using: composite
+  steps:
+    # The pins live here, with the verification that uses them, rather than in the calling workflow.
+    # A composite action does not reliably see the caller's `env`, and splitting a checksum from the
+    # command that checks it is how they drift apart. Update these, and TOOLCHAIN.md, together.
+    - name: Fetch start-cli and its signatures
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        START_CLI_VERSION: '2.0.0'
+      run: |
+        gh release download "start-cli/v${START_CLI_VERSION}" -R Start9Labs/start-os \
+          -p start-cli_x86_64-linux -p signatures.tar.gz -D /tmp/sc
+        tar xzf /tmp/sc/signatures.tar.gz -C /tmp/sc
+
+    - name: Verify start-cli by checksum and signature
+      shell: bash
+      env:
+        START_CLI_SHA256: '830c3b25833fed7cfb16b377172125e35aa75a27a356862776358bd21293023d'
+        # The signers, pinned by full fingerprint.
+        START9_FPR: '5456DBFF1B9DF905041FA7765259ADFC2D63C217'
+        MATTHILL_FPR: 'A969C8EBA8B13613D2568A85EE395832E45A6664'
+      run: |
+        set -euo pipefail
+        echo "${START_CLI_SHA256}  /tmp/sc/start-cli_x86_64-linux" | sha256sum --check --strict
+
+        # Keys from a keyserver by fingerprint, not from the release. signatures.tar.gz ships the
+        # signers' public keys beside the signatures they validate, so verifying with a key taken
+        # from it proves the archive is internally consistent and nothing more.
+        export GNUPGHOME=$(mktemp -d); chmod 700 "$GNUPGHOME"
+        for fpr in "$START9_FPR" "$MATTHILL_FPR"; do
+          curl -fsSL "https://keys.openpgp.org/vks/v1/by-fingerprint/$fpr" | gpg --batch --quiet --import
+        done
+
+        # Both signers, not either. One compromised signer should not be enough.
+        for s in start9 MattDHill; do
+          gpg --batch --verify "/tmp/sc/start-cli_x86_64-linux.$s.asc" /tmp/sc/start-cli_x86_64-linux
+        done
+
+        sudo install -m 0755 /tmp/sc/start-cli_x86_64-linux /usr/local/bin/start-cli
+        start-cli --version
+
+    - name: Install the host tools start-cli shells out to
+      shell: bash
+      # start-cli turns the exported image into squashfs by calling tar2sqfs and mksquashfs on the
+      # host. Neither ships on a hosted runner, and the SDK's own check-deps does not look for them:
+      # it checks start-cli, npm, git and jq only. So the build compiles all of Shulcrum first and
+      # then dies on a missing binary, which is an expensive way to learn this.
+      run: |
+        set -euo pipefail
+        sudo apt-get -qq update
+        sudo DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends \
+          squashfs-tools-ng squashfs-tools
+        tar2sqfs --version | head -1
+        command -v mksquashfs
+
+    - name: Use a buildx driver that can export an image
+      shell: bash
+      # start-cli asks buildx for a docker format export of the service image. The runner's default
+      # builder uses the `docker` driver, which cannot produce one. This does not reproduce on a
+      # workstation with the containerd image store turned on, so it is a difference between a
+      # developer machine and a hosted runner rather than a change in the package.
+      run: |
+        set -euo pipefail
+        docker buildx create --name s9pk --driver docker-container --use
+        docker buildx inspect --bootstrap
+
+    - name: Mark the packaging workspace
+      shell: bash
+      env:
+        S9PK_BUILD_KEY: ${{ inputs.s9pk-build-key }}
+      # start-cli packs from a workspace, the directory that contains package repos, and resolves the
+      # physical path to find it, so the checkout's real parent is what has to be marked. The marker
+      # is also two files: a .startos holding only config.yaml is reported exactly as if no workspace
+      # existed at all.
+      run: |
+        set -euo pipefail
+        test -n "$S9PK_BUILD_KEY"   # fail loudly rather than silently signing with a fresh key
+        ws="$(dirname "$GITHUB_WORKSPACE")"
+        mkdir -p "$ws/.startos"
+        printf '%s' "$S9PK_BUILD_KEY" > "$ws/.startos/build.key.pem"
+        chmod 600 "$ws/.startos/build.key.pem"
+        printf 'schema: 1\nregistry:\n  default: https://registry.start9.com\n' \
+          > "$ws/.startos/config.yaml"
+
+    - name: Build
+      shell: bash
+      run: |
+        npm ci
+        make ${{ inputs.arch }}
+
+    - name: Record what was signed
+      shell: bash
+      # The root signature hash is the package's identity to a registry. Printing it here means a
+      # change of signing key shows up in the build log rather than at install time.
+      run: start-cli s9pk inspect *.s9pk commitment
