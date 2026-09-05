@@ -11,11 +11,13 @@ This repo follows the TwentyOne.Life engineering guardrails. Key rules for every
 - **Tests:** every bug fix ships a regression test; crypto/header logic gets known-answer vectors;
   CI must be green before merge.
 - **Releases are signed:** every release ships `SHA256SUMS` + a detached GPG signature (see `release.yml`).
+- **Changing CI:** read [`docs/ci.md`](docs/ci.md) first. It lists the build environment traps that have
+  already cost a red run each, and how to reproduce a CI failure locally instead of pushing to find out.
 
 ## Definition of Done
 - [ ] Design doc/ADR if non-trivial
 - [ ] Minimal, slop-free diff matching surrounding style
-- [ ] Tests added (regression for fixes) and CI green
+- [ ] Tests added (regression for fixes) and CI green (`docs/ci.md` before touching the workflow)
 - [ ] Docs/README/PLAN updated
 - [ ] No PII, no personal identity/trailers, no secrets, no unpinned/unverified deps
 - [ ] Linked issue, reviewed, `main` still releasable
