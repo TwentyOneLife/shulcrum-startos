@@ -21,7 +21,18 @@ export const manifest = setupManifest({
   packageRepo: 'https://github.com/TwentyOneLife/shulcrum-startos',
   upstreamRepo: 'https://github.com/TwentyOneLife/Shulcrum',
   marketingUrl: 'https://github.com/TwentyOneLife/Shulcrum',
-  donationUrl: null,
+  // A bitcoin URI rather than a web page, so a wallet with a handler registered opens on a click and
+  // everyone else can still read the address off it. StartOS renders this as a link on the About tab.
+  //
+  // No label parameter, deliberately. This is the same string the QR in instructions.md encodes, and
+  // a label costs two QR versions, turning a 29x29 grid into 37x37. The page already names who the
+  // donation is for, so the label bought density for nothing.
+  //
+  // Read the warning in instructions.md before sending anything: this chain shares Bitcoin's address
+  // format and its genesis block, so this address is equally valid on Bitcoin and a payment sent
+  // there is a different asset.
+  donationUrl:
+    'bitcoin:1BH665bXvEqSuoWQUihiQiPpt2BqpzrgGD',
   description: { short, long },
   volumes: ['main'],
   images: {

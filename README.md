@@ -170,6 +170,20 @@ therefore rebuilds the index, which takes as long as the first one did.
   guards have been exercised against a live Bitcoin Blake2b node from a workstation, but the
   install-time behaviour has not been observed on real hardware.
 
+## Supporting this work
+
+Donations to TwentyOne.Life, in **BitcoinB2B**:
+
+```
+1BH665bXvEqSuoWQUihiQiPpt2BqpzrgGD
+```
+
+<img src="assets/donation-qr.png" alt="BitcoinB2B donation address for TwentyOne.Life" width="200">
+
+Bitcoin Blake2b shares Bitcoin's address format and its genesis block, so this address is equally
+valid on Bitcoin and nothing about it says which chain it belongs to. Send from a Bitcoin Blake2b
+wallet: Bitcoin sent here is a different asset.
+
 ## Quick reference
 
 | | |
