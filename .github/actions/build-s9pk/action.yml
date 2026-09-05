@@ -88,16 +88,50 @@ runs:
       shell: bash
       env:
         S9PK_BUILD_KEY: ${{ inputs.s9pk-build-key }}
+        ACTOR: ${{ github.actor }}
       # start-cli packs from a workspace, the directory that contains package repos, and resolves the
       # physical path to find it, so the checkout's real parent is what has to be marked. The marker
       # is also two files: a .startos holding only config.yaml is reported exactly as if no workspace
       # existed at all.
+      #
+      # The key is absent on a Dependabot run and that is by design, not a misconfiguration: GitHub
+      # withholds Actions secrets from workflows triggered by Dependabot, which is a security
+      # property worth keeping rather than working around by copying the signing key into the
+      # Dependabot secret store. Without a fallback that combination is a trap, because build-s9pk is
+      # a required check, so every Dependabot pull request would fail forever and no dependency
+      # update could ever merge.
+      #
+      # So those runs sign with a throwaway key generated here. What they prove is that the package
+      # still builds and packs under the updated dependency, which is the whole question a dependency
+      # bump asks. What they cannot prove is publisher identity, and the artifact from such a run must
+      # never be released. Any other run with no key still fails loudly, as before.
       run: |
         set -euo pipefail
-        test -n "$S9PK_BUILD_KEY"   # fail loudly rather than silently signing with a fresh key
         ws="$(dirname "$GITHUB_WORKSPACE")"
         mkdir -p "$ws/.startos"
-        printf '%s' "$S9PK_BUILD_KEY" > "$ws/.startos/build.key.pem"
+
+        if [ -n "$S9PK_BUILD_KEY" ]; then
+          printf '%s' "$S9PK_BUILD_KEY" > "$ws/.startos/build.key.pem"
+        elif [ "$ACTOR" = "dependabot[bot]" ]; then
+          echo "::warning::No signing key on a Dependabot run, which is expected. Generating a"
+          echo "::warning::throwaway key: this build proves the package still packs, and its artifact"
+          echo "::warning::is not publishable."
+          # init-workspace rather than openssl or node, because the key format is not the obvious
+          # one: it is Ed25519 in PKCS#8 **version 1**, carrying the public key alongside the
+          # private one, where both `openssl genpkey` and node's default export produce version 0.
+          # Checked by decoding the DER of a real key rather than assumed. Using the tool's own
+          # generator means the format cannot drift from what the tool expects.
+          ( cd "$ws" && start-cli s9pk init-workspace >/dev/null 2>&1 )
+          # It also clones a large reference monorepo this build has no use for. Removed so it cannot
+          # be mistaken for an input to the package.
+          rm -rf "$ws/start-technologies" "$ws/AGENTS.md" "$ws/AGENTS.local.md" "$ws/CLAUDE.md"
+          test -s "$ws/.startos/build.key.pem"
+        else
+          echo "S9PK_BUILD_KEY is empty and this is not a Dependabot run." >&2
+          echo "Refusing to sign with a generated key: every build would be a different publisher." >&2
+          exit 1
+        fi
+
         chmod 600 "$ws/.startos/build.key.pem"
         printf 'schema: 1\nregistry:\n  default: https://registry.start9.com\n' \
           > "$ws/.startos/config.yaml"
