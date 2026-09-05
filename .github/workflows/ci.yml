@@ -9,8 +9,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Actions are pinned to a commit rather than a tag. A tag moves, and a moving third-party
-      # action is an unpinned dependency with write access to the build.
+      # action is an unpinned dependency with write access to the build (Dependabot keeps the pins
+      # from going stale, see .github/dependabot.yml).
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
       - name: Repo hygiene
         run: |
           set -e
@@ -19,6 +23,39 @@ jobs:
           test -f CONTRIBUTING.md
           test -f docs/adr/0001-record-architecture-decisions.md
           echo "hygiene OK"
+
+      - name: Install
+        run: npm ci
+
+      - name: Formatting
+        # prettier was a dependency that nothing enforced: `npm run prettier` writes, and no check
+        # read. Formatting drift is trivial on its own and makes every later diff noisier than the
+        # change it carries.
+        run: npx prettier --check startos
+
+      - name: Types
+        run: npx tsc --noEmit
+
+      - name: Workflows parse
+        # Deliberately not actionlint. It would be the obvious tool, and adopting it means trusting
+        # a third-party binary that we cannot verify to the standard TOOLCHAIN.md sets for
+        # `start-cli`, which would make the toolchain rule mean less than it does. This uses the
+        # `yaml` parser already in the tree and catches the failure that actually strands a run: a
+        # workflow that does not parse.
+        run: |
+          node -e '
+            const YAML = require("yaml"), fs = require("fs");
+            const files = [
+              ".github/workflows/ci.yml",
+              ".github/workflows/release.yml",
+              ".github/actions/build-s9pk/action.yml",
+              ".github/dependabot.yml",
+            ];
+            for (const f of files) {
+              YAML.parse(fs.readFileSync(f, "utf8"));
+              console.log("parses:", f);
+            }
+          '
 
   build-s9pk:
     runs-on: ubuntu-latest

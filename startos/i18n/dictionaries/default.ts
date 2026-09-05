@@ -11,5 +11,5 @@ export default {
   'Indexing the Bitcoin Blake2b chain': 3,
   'Waiting for the Bitcoin Blake2b node': 4,
   'Fully synced': 5,
-  'Indexing': 6,
+  Indexing: 6,
 } as const

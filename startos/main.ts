@@ -157,7 +157,9 @@ printf '%s' "\${#HDR}"`
           `that chain but has not yet reached the activation height, let it finish syncing first.`,
       )
     }
-    console.info('Chain guard: node serves 164-byte headers, this is the Bitcoin Blake2b chain.')
+    console.info(
+      'Chain guard: node serves 164-byte headers, this is the Bitcoin Blake2b chain.',
+    )
   }
 
   /**
@@ -292,43 +294,48 @@ printf '%s %s' "\${IDX:-}" "\${TGT:-}"`
     }
   }
 
-  return sdk.Daemons.of(effects)
-    // `primary`, not `shulcrum`: this id is the health check id, and Mempool Guide requires
-    // `['primary', 'sync-progress']` from whatever holds the `fulcrum` id. Requiring an id a
-    // package does not declare reads to StartOS as a failing check that cannot even be named.
-    .addDaemon('primary', {
-      subcontainer: container,
-      // The config path is passed positionally; Shulcrum takes a conf file as its sole argument.
-      exec: { command: ['shulcrum', '/mnt/shulcrum/fulcrum.conf'] },
-      ready: {
-        display: i18n('Electrum (SSL)'),
-        fn: () => sdk.healthCheck.checkPortListening(effects, port, {
-          successMessage: i18n('Fully synced'),
-          errorMessage: i18n('Indexing'),
-        }),
-      },
-      requires: [],
-    })
-    .addHealthCheck('sync-progress', {
-      // Separate from the port check on purpose: the port opens long before the index is usable,
-      // so "listening" and "caught up" are two different questions and deserve two answers.
-      ready: {
-        display: i18n('Indexing'),
-        fn: async () => {
-          const p = await readProgress()
-          if (!p) return { result: 'starting', message: null }
-          // Said out loud when the target is the remembered one, so a number read here is never
-          // more current than it actually is.
-          const asOf = p.stale ? ' (node not answering; last known height)' : ''
-          if (p.indexed >= p.total) {
-            return { result: 'success', message: i18n('Fully synced') + asOf }
-          }
-          return {
-            result: 'loading',
-            message: `${p.percent}% (${p.indexed} of ${p.total})${asOf}`,
-          }
+  return (
+    sdk.Daemons.of(effects)
+      // `primary`, not `shulcrum`: this id is the health check id, and Mempool Guide requires
+      // `['primary', 'sync-progress']` from whatever holds the `fulcrum` id. Requiring an id a
+      // package does not declare reads to StartOS as a failing check that cannot even be named.
+      .addDaemon('primary', {
+        subcontainer: container,
+        // The config path is passed positionally; Shulcrum takes a conf file as its sole argument.
+        exec: { command: ['shulcrum', '/mnt/shulcrum/fulcrum.conf'] },
+        ready: {
+          display: i18n('Electrum (SSL)'),
+          fn: () =>
+            sdk.healthCheck.checkPortListening(effects, port, {
+              successMessage: i18n('Fully synced'),
+              errorMessage: i18n('Indexing'),
+            }),
         },
-      },
-      requires: [],
-    })
+        requires: [],
+      })
+      .addHealthCheck('sync-progress', {
+        // Separate from the port check on purpose: the port opens long before the index is usable,
+        // so "listening" and "caught up" are two different questions and deserve two answers.
+        ready: {
+          display: i18n('Indexing'),
+          fn: async () => {
+            const p = await readProgress()
+            if (!p) return { result: 'starting', message: null }
+            // Said out loud when the target is the remembered one, so a number read here is never
+            // more current than it actually is.
+            const asOf = p.stale
+              ? ' (node not answering; last known height)'
+              : ''
+            if (p.indexed >= p.total) {
+              return { result: 'success', message: i18n('Fully synced') + asOf }
+            }
+            return {
+              result: 'loading',
+              message: `${p.percent}% (${p.indexed} of ${p.total})${asOf}`,
+            }
+          },
+        },
+        requires: [],
+      })
+  )
 })
