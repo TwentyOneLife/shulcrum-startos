@@ -8,7 +8,9 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4  # TODO: pin actions to commit SHA (GUARDRAILS §4)
+      # Actions are pinned to a commit rather than a tag. A tag moves, and a moving third-party
+      # action is an unpinned dependency with write access to the build (GUARDRAILS §4).
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Repo hygiene
         run: |
           set -e
@@ -18,13 +20,90 @@ jobs:
           test -f docs/adr/0001-record-architecture-decisions.md
           echo "hygiene OK"
 
-# The .s9pk build/test job is added here once the StartOS package (package.json + startos/) exists:
-# it will checkout, `npm ci`, `make`, and upload the .s9pk artifact.
+  build-s9pk:
+    runs-on: ubuntu-latest
+    env:
+      # Pinned by exact version and checksum. A moving ref would make the build unreproducible and
+      # would let a replaced binary in without anything failing.
+      START_CLI_VERSION: '2.0.0'
+      START_CLI_SHA256: '830c3b25833fed7cfb16b377172125e35aa75a27a356862776358bd21293023d'
+      # The signers, pinned by full fingerprint. Keys are fetched from a keyserver rather than taken
+      # from the release, because a key shipped alongside the signature it validates proves only
+      # that the archive is internally consistent. Whoever replaced the binary could replace both.
+      START9_FPR: '5456DBFF1B9DF905041FA7765259ADFC2D63C217'
+      MATTHILL_FPR: 'A969C8EBA8B13613D2568A85EE395832E45A6664'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+
+      - name: Fetch start-cli and its signatures
+        run: |
+          gh release download "start-cli/v${START_CLI_VERSION}" -R Start9Labs/start-os \
+            -p start-cli_x86_64-linux -p signatures.tar.gz -D /tmp/sc
+          tar xzf /tmp/sc/signatures.tar.gz -C /tmp/sc
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Verify start-cli by checksum and signature
+        run: |
+          set -euo pipefail
+          echo "${START_CLI_SHA256}  /tmp/sc/start-cli_x86_64-linux" | sha256sum --check --strict
+
+          export GNUPGHOME=$(mktemp -d); chmod 700 "$GNUPGHOME"
+          for fpr in "$START9_FPR" "$MATTHILL_FPR"; do
+            curl -fsSL "https://keys.openpgp.org/vks/v1/by-fingerprint/$fpr" | gpg --batch --quiet --import
+          done
+
+          # Both signers, not either. One compromised signer should not be enough.
+          for s in start9 MattDHill; do
+            gpg --batch --verify "/tmp/sc/start-cli_x86_64-linux.$s.asc" /tmp/sc/start-cli_x86_64-linux
+          done
+
+          sudo install -m 0755 /tmp/sc/start-cli_x86_64-linux /usr/local/bin/start-cli
+          start-cli --version
+
+      - name: Set up the packaging workspace
+        # start-cli 2.0 packs from a *workspace*, the directory containing package repos, not from
+        # the repo itself. The workspace also holds .startos/build.key.pem, which signs the s9pk
+        # root. That key is restored from a secret rather than generated: init-workspace makes a
+        # fresh one every time, and a package signed by a different key on every build is a
+        # different publisher on every build.
+        env:
+          S9PK_BUILD_KEY: ${{ secrets.S9PK_BUILD_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$S9PK_BUILD_KEY"   # fail loudly rather than silently signing with a fresh key
+          mkdir -p /tmp/ws/.startos
+          printf '%s' "$S9PK_BUILD_KEY" > /tmp/ws/.startos/build.key.pem
+          chmod 600 /tmp/ws/.startos/build.key.pem
+          printf 'schema: 1\nregistry:\n  default: https://registry.start9.com\n' \
+            > /tmp/ws/.startos/config.yaml
+          ln -s "$GITHUB_WORKSPACE" /tmp/ws/package
+
+      - name: Build the .s9pk
+        working-directory: /tmp/ws/package
+        run: |
+          npm ci
+          make x86
+
+      - name: Record what was signed
+        working-directory: /tmp/ws/package
+        # The root signature hash is the package's identity to a registry. Printing it here means a
+        # change of signing key shows up in the build log rather than at install time.
+        run: start-cli s9pk inspect *.s9pk commitment
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: s9pk
+          path: '*.s9pk'
+          if-no-files-found: error
 
   no-internal-refs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Guard against infra leakage
         run: |
           if git grep -nIE '192\.168\.[0-9]|(^|[^0-9.])10(\.[0-9]{1,3}){3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]|/home/|/data/|[a-z2-7]{16,56}\.onion' -- . ':!.github/workflows/ci.yml'; then
