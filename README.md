@@ -1,9 +1,9 @@
 # shulcrum-startos
 
 A [StartOS](https://start9.com) package (`.s9pk`) for **Shulcrum** — a BLAKE2b-capable Electrum server
-(fork of [Fulcrum](https://github.com/cculianu/Fulcrum)) for the Bitcoin BLAKE2b/RDTS chain.
+(fork of [Fulcrum](https://github.com/cculianu/Fulcrum)) for the Bitcoin Blake2b (BitcoinB2B)/RDTS chain.
 
-Runs on a StartOS node alongside a BLAKE2b Bitcoin Knots node, providing an Electrum backend and enabling
+Runs on a StartOS node alongside a Bitcoin Blake2b (Knots) node, providing an Electrum backend and enabling
 a self-hosted mempool explorer for the chain.
 
 - **Status:** early scaffold. See [`PLAN.md`](PLAN.md) for phases and design.
