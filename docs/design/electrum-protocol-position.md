@@ -1,7 +1,7 @@
 # Design: our position on the Electrum protocol for a BLAKE2b chain
 
 - **Issues:** #6 (`headers.subscribe`), #7 (`cp_height` proofs), #8 (chain identity)
-- **Status:** draft, decisions open
+- **Status:** accepted, 2026-09-05
 - **Last updated:** 2026-09-05
 
 This is the document those three issues were missing. They were one-line issue bodies against a
@@ -9,8 +9,8 @@ protocol change, which the guardrails do not allow: a protocol or consensus-adja
 with a design doc. It also exists so the decisions below are argued somewhere durable rather than
 settled in conversation and forgotten.
 
-Sections 1 to 3 are findings and should be uncontroversial. Section 4 is the open decisions, each
-with a recommendation and a blank for the answer. Fill the blanks in this file.
+Sections 1 to 3 are findings. Section 4 records the decisions, all six taken on 2026-09-05.
+Section 5 records the requirement that two of those answers introduced.
 
 ## 1. There is already a specification, and it is not ours
 
@@ -93,7 +93,10 @@ algorithm applies from which height, and it does not conflict with negotiating 1
 The honest cost: this makes our first contribution to Shulcrum "adopt another project's protocol
 decision", which is a large thing to ask of a maintainer who has not yet replied.
 
-**Decision:**
+**Decision, 2026-09-05: adopt 1.8, and keep `pow_algorithms` alongside it.**
+Accepted with an addition that changes the reasoning: Sparrow wallet support is a requirement, not a
+preference. That makes 1.8 the only available answer rather than the better of two, because the
+working Sparrow fork speaks 1.8. See section 5.
 
 ### D2. Where does our protocol work land, and in what shape?
 
@@ -105,7 +108,9 @@ position on v0.3, not a rival to it. Concretely that turns #6 and #7 from open r
 "validate against v0.3 section 2" and "validate against v0.3 section 4", and it gives #8 a shape
 (the fork point) rather than an open design question.
 
-**Decision:**
+**Decision, 2026-09-05: adopt v0.3 as the reference, do not write a competing specification.**
+This document is our position on v0.3. #6 and #7 become validation against its sections 2 and 4,
+and #8 takes its fork-point shape.
 
 ### D3. What do we contribute first?
 
@@ -114,7 +119,7 @@ own side, it is already implemented in the code we forked, and phase 3 will give
 that it works across a real activation boundary. It is a contribution rather than an introduction,
 and it is the strongest position we will have to open with.
 
-**Decision:**
+**Decision, 2026-09-05: `cp_height` is our first contribution.**
 
 ### D4. How is mainnet verification recorded?
 
@@ -127,7 +132,9 @@ that currently exist only as issue comments move into it, in particular that `ge
 verbose JSON masks bit 31 off the version word while the raw serialization keeps it, so a hand check
 against the JSON shows a false mismatch.
 
-**Decision:**
+**Decision, 2026-09-05: #5 produces a checked-in script plus mainnet golden vectors**, extending the
+testnet4 vectors with the activation pair at 961639 and 961640, and absorbing the findings that
+currently exist only as issue comments.
 
 ### D5. Which already-made decisions become ADRs?
 
@@ -139,7 +146,8 @@ Fulcrum fork; one for `extended_headers` being fixed true and never exposed, whi
 per index database and is the reason the package declines a node picklist. The rest are ordinary
 choices and would be noise.
 
-**Decision:**
+**Decision, 2026-09-05: two ADRs.** Basing on Shulcrum, and `extended_headers` fixed true and never
+exposed. No others.
 
 ### D6. Who owns the client half?
 
@@ -150,9 +158,36 @@ documentation, and the Sparrow fork described in spec v0.3. Nothing in our backl
 **Recommendation: track it, do not build it.** File an issue naming it an external dependency, and
 choose which fork we test against during phase 6. Building a wallet is not this project.
 
-**Decision:**
+**Decision, 2026-09-05: track the client, do not build it, but treat Sparrow compatibility as a
+requirement of this project rather than someone else's problem.** We do not write wallet code. We do
+owe an end-to-end test that a Sparrow build syncs against our server, and that obligation is what
+pins D1. See section 5.
 
-## 5. What this does not change
+## 5. Sparrow compatibility is a requirement
+
+D1 and D6 were both answered with the same constraint, so it is recorded here once rather than
+buried in two decisions.
+
+**A wallet that cannot use this server is a server that has not solved the problem.** Sparrow is the
+wallet we are targeting. That has three consequences worth stating plainly, because they are
+obligations we have taken on rather than preferences we have expressed:
+
+1. **It settles D1 by itself.** The only working BLAKE2b Sparrow fork speaks protocol 1.8. Serving
+   1.7 to it does not work. So 1.8 is not the better of two options here, it is the only one that
+   meets the requirement, and the argument in D1 is now a supporting argument rather than the
+   deciding one.
+2. **It adds an acceptance test nobody currently owns.** A Sparrow build must connect to our server
+   on the BLAKE2b chain and sync a wallet, including across the activation boundary at 961640. Until
+   that has been done once, the chain is not actually usable end to end, whatever our own tests say.
+3. **It constrains which client fork we track.** Two exist: Shrike (`AcesHigh70/sparrow`, branch
+   `blake2b-header`), named in Shulcrum's own documentation, and the fork described in spec v0.3.
+   These may or may not be the same lineage and may or may not agree on the wire. Establishing which
+   one to test against, and whether they diverge, is now work rather than an idle question.
+
+We still do not write wallet code. The distinction is between owning the implementation, which we do
+not, and owning the proof that it works against us, which we now do.
+
+## 6. What this does not change
 
 Phase 3 comes first regardless. None of the above is actionable until the index exists: the
 surfaces in #6 and #7 can only be exercised across the activation boundary, which means an index
