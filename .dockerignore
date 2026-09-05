@@ -1,0 +1,6 @@
+node_modules/
+javascript/
+builds/
+*.s9pk
+**/*.orig
+**/*.rej
