@@ -72,10 +72,22 @@ request is a load, not a search.
 | Chain | Offered range | Below it |
 |---|---|---|
 | No v2 header | 1.4 to 1.7, unchanged | refused as today |
-| Has a v2 header | **exactly 1.8** | refused with a reason, connection closed |
+| Has a v2 header | **1.4 to 1.8** | allowed to connect, refused every header |
 
-The rule lives in one pure function taking whether the chain is v2 and returning the range. The
-`server.version` handler uses it where it now uses the constants, and `server.features` reports the
+**Correction, 2026-09-22, made while implementing this.** The row above first said a v2 chain
+offers exactly 1.8 and refuses anything below at `server.version`, as the specification's server
+does. That would take the block explorer offline. Mempool's backend connects with exactly `"1.4"`
+and then asks only about scripthashes, never about a header, so refusing it at the handshake would
+protect it from something it never requests and break the integration this server exists for.
+
+The safety property is unchanged, because the harm is a v2 header reaching a client that will
+misread it, and no header does. An old wallet still gets the explanation, on its first header
+request rather than at connect. This is the half the specification itself calls safety-critical:
+refusing at `server.version` is described there as not sufficient on its own, and the serve-time
+check is sufficient by itself.
+
+The rule lives in one pure function taking whether the chain is v2 and returning the maximum. The
+`server.version` handler uses it where it now uses the constant, and `server.features` reports the
 same numbers in `protocol_min` and `protocol_max`.
 
 The refusal uses Shulcrum's existing `RPCErrorWithDisconnect` and says why, in the words
