@@ -45,6 +45,20 @@ jobs:
           # Prove the signature verifies before publishing it, rather than finding out from a user.
           gpg --batch --verify SHA256SUMS.asc SHA256SUMS
 
+      - name: Verify against the published key
+        # The check above runs in the keyring that just imported the signing key, so it would pass
+        # even if the key committed to this repo were a different or outdated one. This one imports
+        # only the published key into an empty keyring, which is exactly what a user does. A release
+        # that cannot be verified with the key we publish is worse than no release: it teaches
+        # people the check is noise.
+        run: |
+          set -euo pipefail
+          export GNUPGHOME="$(mktemp -d)"
+          chmod 700 "$GNUPGHOME"
+          gpg --batch --quiet --import keys/twentyonelife-release.asc
+          gpg --batch --verify SHA256SUMS.asc SHA256SUMS
+          sha256sum --check --strict SHA256SUMS
+
       - name: Publish release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
