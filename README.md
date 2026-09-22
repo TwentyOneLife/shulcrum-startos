@@ -89,7 +89,6 @@ Values this package fixes rather than exposes:
 | `peering`, `announce` | `false` | Fulcrum's defaults announce to, and pull peers from, Bitcoin's Electrum network, where this server answers for an incompatible chain |
 | `rpccookie` | `/mnt/bitcoin/.cookie` | Cookie auth only, so this package never stores an RPC credential |
 | `tcp` | `0.0.0.0:50001` | Container-internal. This binding is what StartOS exports |
-| `admin` | `127.0.0.1:8000` | An unauthenticated control socket. Loopback only |
 
 `db_mem` is user-tunable, in MiB.
 
@@ -141,11 +140,11 @@ is the address a dependent such as Mempool Guide resolves. Off the box, the TLS 
 | `primary` | The Electrum port is listening |
 | `sync-progress` | How far the index has got, as a percentage and a height |
 
-Two checks because the port opens long before the index is usable, so "listening" and "caught up"
-are different questions. `sync-progress` reads the indexed height from Shulcrum's admin socket, which
-answers throughout a build, and the target height from the node. When the node is briefly
-unreachable the check reports against the last height it was told and says so, rather than going
-unready because of somebody else's restart.
+Two checks because Shulcrum opens the Electrum port only once its first sync completes, and none
+of its listeners is open during a build. `sync-progress` reports the build from Shulcrum's own log,
+which gives a height and a percentage every 1000 blocks, and turns successful once the Electrum
+port is listening. The port stays open while the node restarts, so the check does not go unready
+because of somebody else's restart.
 
 ## Actions
 
@@ -202,7 +201,6 @@ wallet: Bitcoin sent here is a different asset.
 | Node mount | `/mnt/bitcoin`, read-only |
 | Cookie | `/mnt/bitcoin/.cookie` |
 | Electrum | 50002 TLS, 50001 plaintext on the bridge |
-| Admin socket | `127.0.0.1:8000`, loopback only |
 | Dependency | `bitcoind`, required, checks `bitcoind` and `sync-progress` |
 | Health checks | `primary`, `sync-progress` |
 | Actions | none |

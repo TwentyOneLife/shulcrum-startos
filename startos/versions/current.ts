@@ -1,10 +1,9 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 const notes =
-  'The donation link on the About tab now opens a page instead of rendering as ' +
-  'unclickable text: StartOS linkifies only http and https, so a bitcoin URI sat ' +
-  'there dead. The address and its QR are still in the instructions, where they ' +
-  'can be copied without leaving the service view.'
+  'The Indexing health check now shows progress while the index is being built. ' +
+  'It used to show nothing until the build finished, because it read a socket ' +
+  'Shulcrum opens only after its first sync.'
 
 export const current = VersionInfo.of({
   // Marks this as a flavor of `fulcrum` rather than a replacement for it. Upstream is Fulcrum
@@ -16,7 +15,7 @@ export const current = VersionInfo.of({
   // The revision after the flavor is ours, not upstream's. It moves whenever this package changes
   // while Fulcrum does not, which is what stops a changed package reaching an installed instance
   // under a version string that already means something else.
-  version: '#blake:2.1.2:2',
+  version: '#blake:2.1.2:3',
   releaseNotes: { en_US: notes },
   migrations: {
     up: async ({ effects }) => {},

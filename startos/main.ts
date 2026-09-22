@@ -4,7 +4,6 @@ import { confFile } from './fileModels/fulcrum.conf'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
 import {
-  adminPort,
   cookiePath,
   dataDir,
   nodeId,
@@ -13,6 +12,7 @@ import {
   port,
   storeSubdir,
 } from './utils'
+import { lastProgress } from './progress'
 
 export const main = sdk.setupMain(async ({ effects }) => {
   console.info(i18n('Starting Shulcrum'))
@@ -218,81 +218,16 @@ exit 0`
   }
 
   /**
-   * How far the index has got, and how far it has to go.
+   * The last progress line Fulcrum logged, read from its own output as it arrives.
    *
-   * Two sources, because neither knows both numbers. Shulcrum's admin RPC reports the indexed
-   * height and, unlike its Electrum port, answers throughout an index build: the Electrum side
-   * services no request for minutes at a time while a batch is indexed, which is precisely the
-   * window this check exists to describe. The node supplies the target, because `getinfo` carries
-   * no node height: its `bitcoind_info` is version, subversion, relayfee and warnings only.
+   * The log is the only source of a height during a build. Fulcrum's Electrum and admin listeners
+   * both stay closed until the first sync completes, which is how an earlier version of this check,
+   * reading the admin socket, reported nothing for the whole of a build (#29).
    *
-   * The admin interface is line-delimited JSON-RPC over a plain TCP socket rather than HTTP, so
-   * this speaks to it with bash's /dev/tcp instead of curl. Loopback inside the container.
-   *
-   * Null on any doubt. Every caller reads correctly without a number, and a health message is not
-   * worth being wrong about.
-   *
-   * TODO before #11 closes: exercise this against a live instance mid-build. The probe shape is
-   * derived from the source, not yet observed.
+   * Null after every start until the first line, which Fulcrum writes every 1000 blocks. It logs no
+   * height when it opens the store, so there is nothing earlier to seed this from.
    */
-  /**
-   * The last target height the node gave us.
-   *
-   * Kept because the two numbers come from two services and only one of them is ours. A node
-   * restart or update makes the target unavailable for a minute, and without this a fully indexed
-   * Shulcrum answered "not started yet" for the duration, taking anything gated on
-   * `['primary','sync-progress']` unready because of somebody else's restart (#26). Our own height
-   * is still known in that window, so the honest report is that height against the last target we
-   * were told, labelled as such.
-   */
-  let lastKnownTotal: number | null = null
-
-  const readProgress = async (): Promise<{
-    indexed: number
-    total: number
-    percent: string
-    stale: boolean
-  } | null> => {
-    // The node half is omitted entirely when there is no node, rather than curling `http://null/`.
-    const target = nodeRpc
-      ? `TGT=$(curl -s --max-time 5 --user "$(cat ${cookiePath})" -H 'content-type: text/plain;' \
---data-binary '{"jsonrpc":"1.0","id":"h","method":"getblockchaininfo","params":[]}' \
-http://${nodeRpc}/ 2>/dev/null | sed -n 's/.*"blocks":\\([0-9]*\\).*/\\1/p')`
-      : 'TGT='
-
-    const probe = `exec 3<>/dev/tcp/127.0.0.1/${adminPort} || exit 1
-printf '{"jsonrpc":"2.0","id":1,"method":"getinfo"}\\n' >&3
-IDX=$(timeout 5 head -n 1 <&3 | sed -n 's/.*"height":[[:space:]]*\\([0-9]*\\).*/\\1/p')
-exec 3<&- 3>&-
-${target}
-printf '%s %s' "\${IDX:-}" "\${TGT:-}"`
-
-    const res = await container.exec(['bash', '-c', probe], {})
-    if (res.exitCode !== 0) return null
-
-    const [rawIndexed, rawTotal] = res.stdout.toString().trim().split(/\s+/)
-    const indexed = Number(rawIndexed)
-    // Our own height is the one number this check cannot do without: not knowing it is the only
-    // state that means "not started".
-    if (!Number.isFinite(indexed) || indexed < 0) return null
-
-    const freshTotal = Number(rawTotal)
-    const haveFresh = Number.isFinite(freshTotal) && freshTotal > 0
-    if (haveFresh) lastKnownTotal = freshTotal
-
-    const total = haveFresh ? freshTotal : lastKnownTotal
-    if (total === null) return null
-
-    // Clamped because the two numbers are read a moment apart from different services, so a block
-    // landing in between can put the index a hair past the height it was measured against.
-    // "100.2%" reads as a fault rather than as the one-block race it is.
-    return {
-      indexed: Math.min(indexed, total),
-      total,
-      percent: Math.min(100, (indexed / total) * 100).toFixed(1),
-      stale: !haveFresh,
-    }
-  }
+  let progress: ReturnType<typeof lastProgress> = null
 
   return (
     sdk.Daemons.of(effects)
@@ -301,8 +236,19 @@ printf '%s %s' "\${IDX:-}" "\${TGT:-}"`
       // package does not declare reads to StartOS as a failing check that cannot even be named.
       .addDaemon('primary', {
         subcontainer: container,
-        // The config path is passed positionally; Shulcrum takes a conf file as its sole argument.
-        exec: { command: ['shulcrum', '/mnt/shulcrum/fulcrum.conf'] },
+        exec: {
+          // The config path is passed positionally; Shulcrum takes a conf file as its sole argument.
+          command: ['shulcrum', '/mnt/shulcrum/fulcrum.conf'],
+          // Supplying either hook makes the SDK pipe both streams instead of passing them through,
+          // so both are forwarded here. A stream left unread would vanish from the service's logs,
+          // and once its pipe filled, Fulcrum's next write to it would block.
+          onStdout: (chunk) => {
+            const text = String(chunk)
+            console.log(text.replace(/\n$/, ''))
+            progress = lastProgress(text) ?? progress
+          },
+          onStderr: (chunk) => console.error(String(chunk).replace(/\n$/, '')),
+        },
         ready: {
           display: i18n('Electrum (SSL)'),
           fn: () =>
@@ -314,24 +260,24 @@ printf '%s %s' "\${IDX:-}" "\${TGT:-}"`
         requires: [],
       })
       .addHealthCheck('sync-progress', {
-        // Separate from the port check on purpose: the port opens long before the index is usable,
-        // so "listening" and "caught up" are two different questions and deserve two answers.
+        // Fulcrum opens its Electrum port only once it has caught up, and keeps it open after, so
+        // a listening port is the synced signal. It stays that way while the node restarts, which
+        // is what keeps anything gated on this check ready through somebody else's restart (#26).
+        // Until then this reports the build, which `primary` cannot.
         ready: {
           display: i18n('Indexing'),
           fn: async () => {
-            const p = await readProgress()
-            if (!p) return { result: 'starting', message: null }
-            // Said out loud when the target is the remembered one, so a number read here is never
-            // more current than it actually is.
-            const asOf = p.stale
-              ? ' (node not answering; last known height)'
-              : ''
-            if (p.indexed >= p.total) {
-              return { result: 'success', message: i18n('Fully synced') + asOf }
-            }
+            const listening = await sdk.healthCheck.checkPortListening(
+              effects,
+              port,
+              { successMessage: i18n('Fully synced'), errorMessage: '' },
+            )
+            if (listening.result === 'success') return listening
             return {
               result: 'loading',
-              message: `${p.percent}% (${p.indexed} of ${p.total})${asOf}`,
+              message: progress
+                ? `${progress.percent}% (height ${progress.height})`
+                : i18n('Indexing. Progress is reported every 1000 blocks'),
             }
           },
         },
