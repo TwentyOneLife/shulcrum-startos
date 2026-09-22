@@ -12,7 +12,7 @@ import {
   port,
   storeSubdir,
 } from './utils'
-import { lastProgress } from './progress'
+import { electrumResult, lastProgress } from './progress'
 
 export const main = sdk.setupMain(async ({ effects }) => {
   console.info(i18n('Starting Shulcrum'))
@@ -229,6 +229,9 @@ exit 0`
    */
   let progress: ReturnType<typeof lastProgress> = null
 
+  /** Whether the Electrum port has been seen listening since this start. */
+  let electrumOpened = false
+
   return (
     sdk.Daemons.of(effects)
       // `primary`, not `shulcrum`: this id is the health check id, and Mempool Guide requires
@@ -251,11 +254,28 @@ exit 0`
         },
         ready: {
           display: i18n('Electrum (SSL)'),
-          fn: () =>
-            sdk.healthCheck.checkPortListening(effects, port, {
-              successMessage: i18n('Fully synced'),
-              errorMessage: i18n('Indexing'),
-            }),
+          fn: async () => {
+            const listening = await sdk.healthCheck.checkPortListening(
+              effects,
+              port,
+              { successMessage: i18n('Fully synced'), errorMessage: '' },
+            )
+            const result = electrumResult(
+              listening.result === 'success',
+              electrumOpened,
+            )
+            if (result === 'success') electrumOpened = true
+            return {
+              result,
+              message: i18n(
+                result === 'success'
+                  ? 'Fully synced'
+                  : result === 'loading'
+                    ? 'Wallets can connect once indexing completes'
+                    : 'The Electrum port stopped listening',
+              ),
+            }
+          },
         },
         requires: [],
       })
