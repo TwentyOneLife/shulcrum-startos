@@ -62,9 +62,12 @@ instance. It now reports `loading` until the port first opens. A port that close
 still a `failure`, since Fulcrum closes it only at shutdown. The SDK logs only `failure` results,
 so the log stays quiet during a build.
 
-**The `admin` listener is removed.** Nothing reads it now, and it is an unauthenticated control
-socket. The SDK's `merge` validates through the config shape, which drops keys the shape does not
-name, so an existing install loses the line on its next start with no migration.
+**The `admin` listener is removed from fresh installs.** Nothing reads it now, and it is an
+unauthenticated control socket. An install from before `:3` keeps its `admin` line: the SDK
+validates file models with `z.deepLoose`, deliberately, so a merge keeps keys the shape does not
+name. This was first written the other way round, on a reading of `merge` alone, and a node
+upgraded to `:4` showed the line still there. Removing it from those installs would take an
+explicit edit, which is not worth it for a loopback socket on the few installs that predate `:3`.
 
 ## Alternatives considered
 
