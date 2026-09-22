@@ -31,10 +31,13 @@ jobs:
         # prettier was a dependency that nothing enforced: `npm run prettier` writes, and no check
         # read. Formatting drift is trivial on its own and makes every later diff noisier than the
         # change it carries.
-        run: npx prettier --check startos
+        run: npx prettier --check startos test
 
       - name: Types
         run: npx tsc --noEmit
+
+      - name: Tests
+        run: npm test
 
       - name: Workflows parse
         # Deliberately not actionlint. It would be the obvious tool, and adopting it means trusting

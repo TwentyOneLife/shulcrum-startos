@@ -1,6 +1,6 @@
 import { FileHelper, z } from '@start9labs/start-sdk'
 import { sdk } from '../sdk'
-import { adminPort, cookiePath, dataDir, port } from '../utils'
+import { cookiePath, dataDir, port } from '../utils'
 
 /**
  * Fulcrum's config is flat `key = value` lines with unquoted values, which is what the SDK's ini
@@ -43,11 +43,11 @@ export const shape = z.object({
    * exports over the LXC bridge, and narrowing it to loopback would leave the Electrum interface
    * and the Mempool Guide path with nothing to reach. Container-internal, not host-exposed.
    *
-   * `admin` is the loopback-only one. It is an unauthenticated control socket and nothing outside
-   * this container has any business reaching it.
+   * There is no `admin`. Nothing reads it, and an unauthenticated control socket nobody uses is only
+   * a liability. Leaving it out of this shape is what removes it from an existing install, since a
+   * merge drops keys the shape does not name.
    */
   tcp: z.string().catch(`0.0.0.0:${port}`),
-  admin: z.string().catch(`127.0.0.1:${adminPort}`),
 
   /**
    * Correctness, not preference. Fulcrum's defaults announce the server to, and pull peers from,

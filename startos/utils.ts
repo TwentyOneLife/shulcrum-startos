@@ -61,14 +61,6 @@ export const storeSubdir = 'fulc2_db'
 export const cookiePath = `${nodeMountpoint}/.cookie`
 
 /**
- * Fulcrum's admin RPC, loopback inside the container only.
- *
- * This is what the sync health check reads. Unlike the Electrum port, it answers throughout an
- * index build, which is the whole window the check exists to describe.
- */
-export const adminPort = 8000
-
-/**
  * The node's RPC endpoint over the LXC bridge, for fulcrum.conf's `bitcoind`.
  *
  * Reactive and chained `.const()`, so main restarts only when the address actually changes: a node

@@ -12,4 +12,5 @@ export default {
   'Waiting for the Bitcoin Blake2b node': 4,
   'Fully synced': 5,
   Indexing: 6,
+  'Indexing. Progress is reported every 1000 blocks': 7,
 } as const

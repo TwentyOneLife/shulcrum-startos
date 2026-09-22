@@ -128,9 +128,10 @@ the bridge, TLS 50002 as the only thing reachable off the box.
 Health checks:
 
 - `checkPortListening` on the Electrum port.
-- A sync-progress check. Fulcrum exposes an admin RPC (`admin = <port>`, loopback only) whose
-  `getinfo` reports the indexed height, which is a first-class interface rather than the metrics
-  scrape the template has to fall back on. Progress compares that height against the node's own.
+- A sync-progress check. This first read the indexed height from Fulcrum's admin RPC and compared
+  it with the node's, but that socket stays closed until the first sync completes. It now reports
+  the progress Fulcrum logs, and a listening Electrum port once synced. See
+  `sync-progress-source.md` (#29).
 - The node dependency is gated on its `node` and `chain` health checks. Not on `sync-progress`,
   which `knots-blake2b` gained in 1.0.0:31: `chain` already fails below the activation height, and a
   second check that stays amber through the whole of initial sync would say nothing new.
