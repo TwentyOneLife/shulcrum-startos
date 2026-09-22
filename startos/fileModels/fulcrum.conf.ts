@@ -44,8 +44,9 @@ export const shape = z.object({
    * and the Mempool Guide path with nothing to reach. Container-internal, not host-exposed.
    *
    * There is no `admin`. Nothing reads it, and an unauthenticated control socket nobody uses is only
-   * a liability. Leaving it out of this shape is what removes it from an existing install, since a
-   * merge drops keys the shape does not name.
+   * a liability. Leaving it out of this shape keeps it out of a fresh install only: the SDK validates
+   * file models loosely, so a merge keeps keys the shape does not name, and an install from before
+   * `:3` keeps its loopback `admin` line.
    */
   tcp: z.string().catch(`0.0.0.0:${port}`),
 
