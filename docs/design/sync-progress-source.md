@@ -1,5 +1,5 @@
 # Design: where sync-progress reads the indexed height
-- **Issue:** #29, and it changes how #26 is met
+- **Issue:** #29, and it changes how #26 is met. #31 adjusts `primary` to match
 - **Status:** draft
 
 ## Problem
@@ -54,6 +54,13 @@ stderr unread; this package does not copy that.
 without the SDK. A chunk is whatever the pipe delivered: several lines, or part of one. The last
 match wins, and the pattern requires the `%`, so a line cut in two gives no reading rather than a
 wrong one.
+
+**`primary` waits instead of failing (#31).** The same fact, a port that opens only once synced,
+made the Electrum port check report `failure` for the whole build. StartOS shows that as a warning
+and logs `Health Check primary failed` every second, and it led an operator to stop a healthy
+instance. It now reports `loading` until the port first opens. A port that closes after that is
+still a `failure`, since Fulcrum closes it only at shutdown. The SDK logs only `failure` results,
+so the log stays quiet during a build.
 
 **The `admin` listener is removed.** Nothing reads it now, and it is an unauthenticated control
 socket. The SDK's `merge` validates through the config shape, which drops keys the shape does not

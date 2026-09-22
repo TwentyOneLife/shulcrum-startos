@@ -13,4 +13,6 @@ export default {
   'Fully synced': 5,
   Indexing: 6,
   'Indexing. Progress is reported every 1000 blocks': 7,
+  'Wallets can connect once indexing completes': 8,
+  'The Electrum port stopped listening': 9,
 } as const

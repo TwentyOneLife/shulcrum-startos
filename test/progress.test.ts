@@ -3,7 +3,7 @@
 // Run: npm test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { lastProgress } from '../startos/progress.ts'
+import { electrumResult, lastProgress } from '../startos/progress.ts'
 
 const p636 =
   '[2026-09-22 12:44:40.371] <Controller> Processed height: 636000, 65.3%, 30.2 blocks/min, 1108.6 txs/sec, 4534.0 addrs/sec'
@@ -48,4 +48,17 @@ test('a line cut across two chunks yields nothing rather than a truncated height
   assert.equal(lastProgress(p636.slice(cut)), null)
   const cutInPercent = p636.indexOf('.3%')
   assert.equal(lastProgress(p636.slice(0, cutInPercent)), null)
+})
+
+test('a port that has never opened is a build in progress, not a failure (#31)', () => {
+  assert.equal(electrumResult(false, false), 'loading')
+})
+
+test('a listening port is success', () => {
+  assert.equal(electrumResult(true, false), 'success')
+  assert.equal(electrumResult(true, true), 'success')
+})
+
+test('a port that closes after opening is a failure', () => {
+  assert.equal(electrumResult(false, true), 'failure')
 })

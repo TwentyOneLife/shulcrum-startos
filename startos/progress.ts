@@ -20,3 +20,17 @@ export const lastProgress = (
   const last = matches.at(-1)
   return last ? { height: Number(last[1]), percent: last[2] } : null
 }
+
+/**
+ * What the Electrum port check should report.
+ *
+ * A closed port before it has ever opened is a build in progress, not a fault: Fulcrum opens it
+ * only once the first sync completes, which can be days. Reporting that as a failure logged
+ * "Health Check primary failed" every second and read as a broken service (#31). A port that
+ * closes after opening is a real fault, because Fulcrum closes it only at shutdown.
+ */
+export const electrumResult = (
+  listening: boolean,
+  openedBefore: boolean,
+): 'success' | 'loading' | 'failure' =>
+  listening ? 'success' : openedBefore ? 'failure' : 'loading'

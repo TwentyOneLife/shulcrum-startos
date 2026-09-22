@@ -137,7 +137,7 @@ is the address a dependent such as Mempool Guide resolves. Off the box, the TLS 
 
 | Id | Reports |
 |---|---|
-| `primary` | The Electrum port is listening |
+| `primary` | The Electrum port is listening. `loading`, not a failure, until the first sync completes |
 | `sync-progress` | How far the index has got, as a percentage and a height |
 
 Two checks because Shulcrum opens the Electrum port only once its first sync completes, and none
