@@ -2,7 +2,7 @@
 
 - **Issues:** #6 (`headers.subscribe`), #7 (`cp_height` proofs), #8 (chain identity)
 - **Status:** accepted, 2026-09-05
-- **Last updated:** 2026-09-05
+- **Last updated:** 2026-09-22
 
 This is the document those three issues were missing. They were one-line issue bodies against a
 protocol change, which the guardrails do not allow: a protocol or consensus-adjacent change starts
@@ -16,8 +16,8 @@ Section 5 records the requirement that two of those answers introduced.
 
 `paulscode/electrs-pruned` carries `docs/electrum-header-v2.md`, **version 0.3, dated 2026-08-26**,
 a 414-line draft titled "Electrum protocol: variable-length block headers". It addresses exactly
-the ground covered by issues #6, #7 and #8. A copy is kept internally for reference; the canonical
-version is in that repository and may have moved on.
+the ground covered by issues #6, #7 and #8. The canonical version is in that repository and may
+have moved on since.
 
 It is a serious document. Its claims are verified against live chain data rather than read from
 source, it records what its own implementations cost, and it lists its open questions honestly.
@@ -134,7 +134,7 @@ against the JSON shows a false mismatch.
 
 **Decision, 2026-09-05: #5 produces a checked-in script plus mainnet golden vectors**, extending the
 testnet4 vectors with the activation pair at 961639 and 961640, and absorbing the findings that
-currently exist only as issue comments.
+currently exist only as issue comments. Tracked as #18.
 
 ### D5. Which already-made decisions become ADRs?
 
@@ -147,7 +147,8 @@ per index database and is the reason the package declines a node picklist. The r
 choices and would be noise.
 
 **Decision, 2026-09-05: two ADRs.** Basing on Shulcrum, and `extended_headers` fixed true and never
-exposed. No others.
+exposed. No others. Done: `docs/adr/0002-base-on-shulcrum.md` and
+`docs/adr/0003-extended-headers-is-fixed-and-never-exposed.md` (#15).
 
 ### D6. Who owns the client half?
 
@@ -184,7 +185,7 @@ obligations we have taken on rather than preferences we have expressed:
    These may or may not be the same lineage and may or may not agree on the wire. Establishing which
    one to test against, and whether they diverge, is now work rather than an idle question.
 
-We still do not write wallet code. The distinction is between owning the implementation, which we do
+Tracked as #17. We still do not write wallet code. The distinction is between owning the implementation, which we do
 not, and owning the proof that it works against us, which we now do.
 
 ## 6. What this does not change
