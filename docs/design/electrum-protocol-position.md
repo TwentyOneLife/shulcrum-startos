@@ -2,7 +2,7 @@
 
 - **Issues:** #6 (`headers.subscribe`), #7 (`cp_height` proofs), #8 (chain identity)
 - **Status:** accepted, 2026-09-05
-- **Last updated:** 2026-09-22
+- **Last updated:** 2026-09-22 (D1 correction)
 
 This is the document those three issues were missing. They were one-line issue bodies against a
 protocol change, which the guardrails do not allow: a protocol or consensus-adjacent change starts
@@ -98,6 +98,14 @@ Accepted with an addition that changes the reasoning: Sparrow wallet support is 
 preference. That makes 1.8 the only available answer rather than the better of two, because the
 working Sparrow fork speaks 1.8. See section 5.
 
+**Correction, 2026-09-22: the decision stands, the reason given for it did not.** Both maintained
+BLAKE2b Sparrow forks send `server.version` with the range `["1.3", "1.8"]`, so against a server
+whose maximum is 1.7 they settle on 1.7 and work. Serving 1.7 to them does work. What makes 1.8
+necessary is the spec's safety rule. A client negotiating 1.8 is saying it can read a 164-byte
+header, and refusing anything below it is what stops an older client silently misreading one.
+Shulcrum does not refuse today, so that failure is live. Sparrow compatibility still costs nothing
+under 1.8, since both forks ask for it. See `protocol-1.8.md`.
+
 ### D2. Where does our protocol work land, and in what shape?
 
 - Write our own competing specification.
@@ -176,7 +184,8 @@ obligations we have taken on rather than preferences we have expressed:
 1. **It settles D1 by itself.** The only working BLAKE2b Sparrow fork speaks protocol 1.8. Serving
    1.7 to it does not work. So 1.8 is not the better of two options here, it is the only one that
    meets the requirement, and the argument in D1 is now a supporting argument rather than the
-   deciding one.
+   deciding one. *(Corrected 2026-09-22: it does not settle D1. Both forks accept 1.7; the safety
+   rule is what settles it. See the correction under D1.)*
 2. **It adds an acceptance test nobody currently owns.** A Sparrow build must connect to our server
    on the BLAKE2b chain and sync a wallet, including across the activation boundary at 961640. Until
    that has been done once, the chain is not actually usable end to end, whatever our own tests say.
