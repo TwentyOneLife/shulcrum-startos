@@ -29,9 +29,14 @@ day**. The progress figure moves quickly at first and then appears to crawl. Tha
 blocks are nearly empty, later ones are not, so the blocks-per-second figure falls while the actual
 work per second stays roughly constant.
 
+Plan for the space it needs. The index is larger than the chain it reads: expect roughly 235 GB for
+mainnet, and it keeps growing with the chain. Put it on a disk with room to spare.
+
 While this is happening:
 
-- The health check reports the percentage complete. Watch that rather than the log.
+- The **Indexing** health check reports the percentage complete. Watch that rather than the log. The
+  other check, **Electrum (SSL)**, stays amber until the index finishes, because Shulcrum does not
+  open its port before then. That is not a fault.
 - **The Electrum port will not answer for minutes at a time.** Shulcrum indexes a whole batch of
   blocks before servicing a request. A wallet that times out during the build has not failed; it is
   early.
@@ -83,6 +88,20 @@ get answers for a chain it is not on. That is a correctness setting, not a priva
 - **"not on the Bitcoin Blake2b chain"**: the node is on a different chain, or it is on this one but
   has not yet reached the fork height. Let it finish syncing.
 - **Address lookups time out during the first index**: expected. See above.
+- **"The Bitcoin node has no transaction index"**: turn on Transaction Index in the node, let it
+  rebuild, then start this service again. Shulcrum answers questions about transactions and cannot
+  do it without one.
+- **"The Bitcoin node is pruned"**: this service indexes the whole chain and needs the whole chain
+  present. A pruned node has to be resynced unpruned.
+- **"The Bitcoin node rejected our RPC credential"**: the node answered but refused the cookie,
+  which means it is configured with a user and password instead. This service authenticates by
+  cookie only.
+
+## Backups
+
+A backup of this service **excludes the index**, deliberately: it is large, and it can be rebuilt
+from the node. What a restore gives you is the configuration, and the index then rebuilds from
+scratch, which takes as long as the first one did. Nothing is lost, but plan for the time.
 
 ## Supporting this work
 

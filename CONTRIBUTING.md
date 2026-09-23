@@ -5,6 +5,13 @@ chain, as a StartOS `.s9pk`. Issues and pull requests are welcome.
 
 Everything here is GPLv3, and contributions are accepted under that licence.
 
+## A note on issue numbers
+
+Code comments and design documents cite issue numbers. They belong to this project's own tracker,
+which is not public, so they read here as what they are: a note that a decision was argued
+somewhere and not invented on the spot. The reasoning that matters is in the comment or the design
+document itself.
+
 ## Building it
 
 The package builds in a container, so you need Docker, Node, and `start-cli`. Nothing has to be

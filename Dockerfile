@@ -1,7 +1,9 @@
 # Shulcrum is built from source here rather than pulled as a binary: nothing is downloaded that
 # would need verifying by hash and signature at install time, and the whole chain from source
 # revision to running server stays auditable.
-FROM ubuntu:24.04 AS builder
+# ubuntu:24.04, resolved 2026-09-23. Pinned by digest for the same reason the actions are: a tag
+# moves, and an image that moves makes this build unreproducible.
+FROM ubuntu@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3 AS builder
 
 ARG SHULCRUM_REPO=https://github.com/TwentyOneLife/Shulcrum.git
 # Pinned to a tag, never a branch. A moving ref would make the image unreproducible and would let
@@ -26,7 +28,7 @@ RUN mkdir build && cd build \
       "LIBS+=-lrocksdb -lz -lbz2 -lzmq -lminiupnpc -ljemalloc" \
  && make -j"$(nproc)"
 
-FROM ubuntu:24.04 AS final
+FROM ubuntu@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3 AS final
 
 # Runtime libraries only. Must track the builder's base release: the binary links against this
 # release's Qt5 and RocksDB soname, so the two stages cannot drift apart.

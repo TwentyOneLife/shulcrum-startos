@@ -21,21 +21,25 @@ backend for the Bitcoin Blake2b (BitcoinB2B) chain and enabling a self-hosted me
    per index DB - set once at first index).
 6. **Integration** - install the package and point a self-hosted mempool explorer at it.
 
-## Status (2026-09-05)
+## Status (2026-09-23)
 
-Phase 5 has its first green build. The `.s9pk` is produced end to end in CI: `start-cli` verified by
-checksum and both signatures, Shulcrum compiled from source in the package's own Dockerfile, the
-image converted to squashfs, and the result signed with our own build key. Open as PR #1.
+**Phase 5 is done and the package runs.** It has been installed on a StartOS node since 2026-09-05,
+now at `#blake:2.1.2:4`. Proven there: the node dependency resolves and connects, the chain guard
+and the node requirements guard both pass against a live Bitcoin Blake2b node, headers are stored
+at 164 bytes, and a store refuses to reopen under a different header size. Both health checks
+behave correctly during a build.
 
-What that does and does not establish. It shows the package builds, signs, and typechecks. It does
-not show the package runs: it has not been installed on a StartOS node, and the health checks and
-the chain guard have been exercised only against a live node from a workstation, not in place.
+**Phase 4 has started in the server rather than the package.** Protocol 1.8 is implemented in the
+Shulcrum fork: the negotiated version follows the chain, headers are refused to clients that cannot
+read them, and `server.features` carries the fork point. A regtest chain crossing its activation
+height exercises all of it, and a block hash that was wrong for post-fork blocks is fixed.
+
+**Phase 3 is the critical path and still running.** The verification index is past two thirds of the
+chain by blocks. The remaining protocol and integration work needs an index that spans the
+activation height, which is also what Phase 6 waits on.
 
 The build environment traps that took four red runs to clear are in `docs/ci.md`. Read it before
 touching `.github/workflows/ci.yml`.
-
-Phase 3 runs in parallel and is unaffected by any of this: the verification index is building
-against a live Bitcoin Blake2b node and is the gate on Phase 4.
 
 ## Risks / open items
 - Mainnet correctness is unverified upstream (testnet only) - Phase 3 is the crux.

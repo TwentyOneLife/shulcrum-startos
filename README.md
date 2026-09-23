@@ -24,22 +24,33 @@ own version word claims and identifies blocks by their proof-of-work hash.
 
 ## Install
 
-There is no registry for this package yet. Build the `.s9pk` and sideload it:
+There is no registry for this package yet, so it is built and sideloaded by hand:
 
 ```sh
 npm ci
 make x86        # or: make arm
 ```
 
-`docs/ci.md` covers the build environment, including the parts that fail in ways that do not name
-themselves.
+That writes `fulcrum_x86_64.s9pk` beside the repository. Install it from the StartOS interface,
+under System, then Sideload, or from a shell on the server:
+
+```sh
+start-cli package install -s fulcrum_x86_64.s9pk
+```
+
+Once releases are published, verify the download first:
+[`docs/verifying-a-release.md`](docs/verifying-a-release.md).
+
+Building the server binary on its own, outside a package, is
+[`docs/building-the-server.md`](docs/building-the-server.md). The build environment, including the
+parts that fail in ways that do not name themselves, is [`docs/ci.md`](docs/ci.md).
 
 ## Package identity
 
 | | |
 |---|---|
 | Package id | `fulcrum` |
-| Version | `#blake:2.1.2:0` |
+| Version | `#blake:2.1.2:4` |
 | Title | Shulcrum |
 
 The id is `fulcrum`, not `shulcrum`, because Mempool Guide and other dependents resolve an Electrum
@@ -165,9 +176,10 @@ therefore rebuilds the index, which takes as long as the first one did.
 - **This package serves one chain.** It refuses to start against an ordinary Bitcoin node.
 - **The node must be archival and carry a transaction index.** Enforced at startup, see above.
 - **The first index takes many hours** and the rate falls as blocks get larger. That is not a fault.
-- **Not yet installed on a StartOS node.** The package builds, signs and typechecks in CI, and the
-  guards have been exercised against a live Bitcoin Blake2b node from a workstation, but the
-  install-time behaviour has not been observed on real hardware.
+- **Installed, but not yet proven end to end.** The package has run on a StartOS node since
+  2026-09-05: the node dependency resolves, both guards pass against a live Bitcoin Blake2b node,
+  and it indexes. What has not been shown is a wallet served across the fork height, because that
+  needs an index spanning it, which takes days to build.
 
 ## Supporting this work
 

@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
 
+# Least privilege by declaration rather than by whatever the repository default happens to be.
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
