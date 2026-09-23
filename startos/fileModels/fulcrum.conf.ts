@@ -31,8 +31,9 @@ export const shape = z.object({
    * Fulcrum rejects a config that sets both this and rpcuser/rpcpassword, so those are absent by
    * construction rather than by convention.
    *
-   * The default is only a seed. main.ts derives the real path from the node's own chain and writes
-   * it on every start, because bitcoind nests a non-mainnet chain's cookie under a subdirectory.
+   * main.ts writes this on every start. The path is a constant, not derived: the node package has
+   * no chain selector and writes its cookie at its datadir root, so there is nothing to derive
+   * from. See `utils.ts`, which records why the earlier derivation was removed.
    */
   rpccookie: z.string().catch(cookiePath),
 

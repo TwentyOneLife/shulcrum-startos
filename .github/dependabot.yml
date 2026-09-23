@@ -20,6 +20,16 @@ updates:
       prefix: 'ci'
     open-pull-requests-limit: 5
 
+  # The build's base image is pinned by digest, for the same reason as the actions. Dependabot is
+  # what stops that pin going stale.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: 'image'
+    open-pull-requests-limit: 3
+
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -37,3 +47,8 @@ updates:
     # the checks are.
     labels:
       - dependencies
+    # The types describe the runtime, and the runtime is Node 22 in both workflows. A major bump
+    # here would describe a Node this package does not run on.
+    ignore:
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']

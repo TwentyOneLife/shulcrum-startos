@@ -3,12 +3,12 @@ on:
   push:
     tags: ["v*"]
 
-permissions:
-  contents: write
-
 jobs:
   release:
     runs-on: ubuntu-latest
+    # On the job rather than the workflow, so the scope is stated where it is used.
+    permissions:
+      contents: write
     steps:
       # Pinned to a commit rather than a tag. A tag moves, and a moving third-party action is an
       # unpinned dependency with write access to the build.

@@ -132,9 +132,10 @@ Health checks:
   it with the node's, but that socket stays closed until the first sync completes. It now reports
   the progress Fulcrum logs, and a listening Electrum port once synced. See
   `sync-progress-source.md` (#29).
-- The node dependency is gated on its `node` and `chain` health checks. Not on `sync-progress`,
-  which `knots-blake2b` gained in 1.0.0:31: `chain` already fails below the activation height, and a
-  second check that stays amber through the whole of initial sync would say nothing new.
+- The node dependency is gated on the node package's own health checks. **Corrected 2026-09-23:**
+  this section described `knots-blake2b`'s checks, `node` and `chain`. The package depends on
+  `bitcoind` instead, for the reasons recorded further up, and gates on that package's checks,
+  `bitcoind` and `sync-progress`. See `startos/dependencies.ts`.
 
 `chain` matters more here than it looks. The two chains share every block up to 961639, so a node
 with no peers on the fork sits just below activation looking perfectly synced. "Synced" does not
