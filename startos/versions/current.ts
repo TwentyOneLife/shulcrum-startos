@@ -1,10 +1,14 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 const notes =
-  'The Indexing health check now shows progress while the index is being built. ' +
-  'It used to show nothing until the build finished, because it read a socket ' +
-  'Shulcrum opens only after its first sync. The Electrum (SSL) check no longer ' +
-  'reports a failure during the build, since wallets cannot connect until it ends.'
+  'Serves Electrum protocol 1.8, which is what a wallet needs in order to read ' +
+  'headers on this chain at all. Adds blake2b_fork to server.features, so a wallet ' +
+  'can learn the activation height and the header width from the server rather than ' +
+  'being told them. A client that negotiated an older protocol is now refused headers ' +
+  'with the reason, rather than handed 164 bytes it would read as a corrupt 80-byte ' +
+  'header. Reports a confirmed transaction block id correctly, which on this chain is ' +
+  'not the SHA256d of the header. The server also now reports a version that names ' +
+  'this build rather than the upstream tag it derives from.'
 
 export const current = VersionInfo.of({
   // Marks this as a flavor of `fulcrum` rather than a replacement for it. Upstream is Fulcrum
@@ -16,7 +20,7 @@ export const current = VersionInfo.of({
   // The revision after the flavor is ours, not upstream's. It moves whenever this package changes
   // while Fulcrum does not, which is what stops a changed package reaching an installed instance
   // under a version string that already means something else.
-  version: '#blake:2.1.2:4',
+  version: '#blake:2.1.2:5',
   releaseNotes: { en_US: notes },
   migrations: {
     up: async ({ effects }) => {},

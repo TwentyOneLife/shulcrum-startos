@@ -8,7 +8,7 @@ FROM ubuntu@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33
 ARG SHULCRUM_REPO=https://github.com/TwentyOneLife/Shulcrum.git
 # Pinned to a tag, never a branch. A moving ref would make the image unreproducible and would let
 # a consensus-adjacent change reach a release without passing through a version bump here.
-ARG SHULCRUM_REF=v2.1.2-blake2b.1
+ARG SHULCRUM_REF=v2.1.2-blake2b.1-twentyonelife.1
 
 RUN apt-get -qq update \
  && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends \
