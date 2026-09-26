@@ -11,10 +11,10 @@
     "bitcoin-core-startos": "github:Start9Labs/bitcoin-core-startos#ec462fb2e463ab9f0fe924339a788d51b4d50ae5"
   },
   "devDependencies": {
-    "@types/node": "^22.17.1",
-    "@vercel/ncc": "^0.38.3",
-    "prettier": "^3.6.2",
-    "typescript": "^6.0.3"
+    "@types/node": "^22.20.4",
+    "@vercel/ncc": "^0.45.0",
+    "prettier": "^3.9.9",
+    "typescript": "^7.0.2"
   },
   "prettier": {
     "trailingComma": "all",
