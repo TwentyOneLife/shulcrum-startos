@@ -50,7 +50,7 @@ parts that fail in ways that do not name themselves, is [`docs/ci.md`](docs/ci.m
 | | |
 |---|---|
 | Package id | `fulcrum` |
-| Version | `#blake:2.1.2:4` |
+| Version | `#blake:2.1.2:6` |
 | Title | Shulcrum |
 
 The id is `fulcrum`, not `shulcrum`, because Mempool Guide and other dependents resolve an Electrum
