@@ -1,4 +1,5 @@
 import { sdk } from './sdk'
+import { nodeVersionRange } from './nodeVersion'
 import { nodeId } from './utils'
 
 /**
@@ -41,14 +42,7 @@ export const setDependencies = sdk.setupDependencies(async ({ effects }) => {
     [nodeId]: {
       kind: 'running' as const,
       healthChecks: ['bitcoind', 'sync-progress'],
-      // Mirrored from electrs-pruned-startos, which is verified against this family of nodes.
-      // Our own requirement is weaker than theirs, since we need no `peer-local` host and open no
-      // P2P connection, so this range is stricter than it has to be. Left strict rather than
-      // guessed at, and flagged on #10 to be confirmed against the real node at install: a
-      // flavored version such as `#knots:29.4.1:6` does not satisfy an unflavored range directly,
-      // it matches through the package's own `satisfies` list, and that is not a thing to assume.
-      versionRange:
-        '(>=28.4:17 && <29) || (>=29.4:4 && <30) || (>=30.3:4 && <31) || >=31.1:4',
+      versionRange: nodeVersionRange,
     },
   }
 })
