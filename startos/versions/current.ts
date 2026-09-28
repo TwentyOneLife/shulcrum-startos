@@ -1,14 +1,10 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 const notes =
-  'Serves Electrum protocol 1.8, which is what a wallet needs in order to read ' +
-  'headers on this chain at all. Adds blake2b_fork to server.features, so a wallet ' +
-  'can learn the activation height and the header width from the server rather than ' +
-  'being told them. A client that negotiated an older protocol is now refused headers ' +
-  'with the reason, rather than handed 164 bytes it would read as a corrupt 80-byte ' +
-  'header. Reports a confirmed transaction block id correctly, which on this chain is ' +
-  'not the SHA256d of the header. The server also now reports a version that names ' +
-  'this build rather than the upstream tag it derives from.'
+  'The Bitcoin Knots dependency no longer reports "Incorrect version" against a ' +
+  "correctly configured BLAKE2b node. The accepted range now names the node's " +
+  'knots flavor, starting at 29.4.1:7, the same floor DATUM Gateway and Mempool ' +
+  'Guide use. Nothing else changes, and an existing index is kept.'
 
 export const current = VersionInfo.of({
   // Marks this as a flavor of `fulcrum` rather than a replacement for it. Upstream is Fulcrum
@@ -20,7 +16,7 @@ export const current = VersionInfo.of({
   // The revision after the flavor is ours, not upstream's. It moves whenever this package changes
   // while Fulcrum does not, which is what stops a changed package reaching an installed instance
   // under a version string that already means something else.
-  version: '#blake:2.1.2:5',
+  version: '#blake:2.1.2:6',
   releaseNotes: { en_US: notes },
   migrations: {
     up: async ({ effects }) => {},
