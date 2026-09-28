@@ -49,6 +49,11 @@ updates:
       - dependencies
     # The types describe the runtime, and the runtime is Node 22 in both workflows. A major bump
     # here would describe a Node this package does not run on.
+    #
+    # TypeScript majors wait for the SDK: it carries typescript-eslint, whose peer range stops below
+    # 6.1, so a TypeScript 7 bump fails `npm ci` before any check runs.
     ignore:
       - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']

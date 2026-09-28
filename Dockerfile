@@ -2,8 +2,10 @@
 # would need verifying by hash and signature at install time, and the whole chain from source
 # revision to running server stays auditable.
 # ubuntu:24.04, resolved 2026-09-23. Pinned by digest for the same reason the actions are: a tag
-# moves, and an image that moves makes this build unreproducible.
-FROM ubuntu@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3 AS builder
+# moves, and an image that moves makes this build unreproducible. The tag stays beside the digest
+# because Dependabot follows whatever tag it finds: with none it followed `latest` to 26.04, where
+# this release's RocksDB and miniupnpc sonames do not exist. A release series is a port, not a bump.
+FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3 AS builder
 
 ARG SHULCRUM_REPO=https://github.com/TwentyOneLife/Shulcrum.git
 # Pinned to a tag, never a branch. A moving ref would make the image unreproducible and would let
@@ -28,7 +30,7 @@ RUN mkdir build && cd build \
       "LIBS+=-lrocksdb -lz -lbz2 -lzmq -lminiupnpc -ljemalloc" \
  && make -j"$(nproc)"
 
-FROM ubuntu@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3 AS final
+FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3 AS final
 
 # Runtime libraries only. Must track the builder's base release: the binary links against this
 # release's Qt5 and RocksDB soname, so the two stages cannot drift apart.
