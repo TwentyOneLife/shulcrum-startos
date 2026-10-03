@@ -5,7 +5,7 @@
 # moves, and an image that moves makes this build unreproducible. The tag stays beside the digest
 # because Dependabot follows whatever tag it finds: with none it followed `latest` to 26.04, where
 # this release's RocksDB and miniupnpc sonames do not exist. A release series is a port, not a bump.
-FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3 AS builder
+FROM ubuntu:25.10@sha256:7cc5e35f6567ee8c66d2abb4aab0fd866669e6207c237c3a8f0947a5c7f17092 AS builder
 
 ARG SHULCRUM_REPO=https://github.com/TwentyOneLife/Shulcrum.git
 # Pinned to a tag, never a branch. A moving ref would make the image unreproducible and would let
@@ -30,7 +30,7 @@ RUN mkdir build && cd build \
       "LIBS+=-lrocksdb -lz -lbz2 -lzmq -lminiupnpc -ljemalloc" \
  && make -j"$(nproc)"
 
-FROM ubuntu:24.04@sha256:008173c23f95b170204355c12626cb5a965d779a7e1283b09e9cffbb1bf33ca3 AS final
+FROM ubuntu:25.10@sha256:7cc5e35f6567ee8c66d2abb4aab0fd866669e6207c237c3a8f0947a5c7f17092 AS final
 
 # Runtime libraries only. Must track the builder's base release: the binary links against this
 # release's Qt5 and RocksDB soname, so the two stages cannot drift apart.
