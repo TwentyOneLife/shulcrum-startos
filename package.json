@@ -7,7 +7,7 @@
     "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts"
   },
   "dependencies": {
-    "@start9labs/start-sdk": "2.0.9",
+    "@start9labs/start-sdk": "3.0.3",
     "bitcoin-core-startos": "github:Start9Labs/bitcoin-core-startos#ec462fb2e463ab9f0fe924339a788d51b4d50ae5"
   },
   "devDependencies": {
